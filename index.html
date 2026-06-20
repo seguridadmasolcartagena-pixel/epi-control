@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0F6E56">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>EPI Control</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛑️</text></svg>">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px;-webkit-text-size-adjust:100%;height:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  background:#F0F4F2;color:#1A2E26;min-height:100%;line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+:root{
+  --g9:#04342C;--g8:#085041;--g7:#0F6E56;--g6:#1D9E75;--g1:#9FE1CB;--g0:#E1F5EE;
+  --a7:#854F0B;--a4:#EF9F27;--a0:#FAEEDA;
+  --r7:#A32D2D;--r0:#FCEBEB;--r1:#F7C1C1;
+  --b7:#185FA5;--b0:#E6F1FB;
+  --n9:#1A2E26;--n7:#3A4A43;--n5:#6B7B72;--n3:#C2CCC7;--n1:#EDF0EE;--n0:#F0F4F2;
+  --rad:10px;--rad-lg:14px;--rad-xl:20px;
+}
+
+/* ── App shell ── */
+.app{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;position:relative}
+
+/* ── Topbar ── */
+.topbar{
+  background:#fff;border-bottom:1px solid var(--n1);
+  padding:12px 16px;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:200;
+}
+.topbar-logo{display:flex;align-items:center;gap:8px;font-weight:800;font-size:16px;color:var(--g7);letter-spacing:-.4px}
+.topbar-right{display:flex;align-items:center;gap:6px}
+
+/* ── Pages ── */
+.page{display:none;flex-direction:column;gap:14px;padding:16px;flex:1;animation:fadeIn .18s ease}
+.page.active{display:flex}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ── Cards ── */
+.card{background:#fff;border-radius:var(--rad-lg);padding:16px;border:1px solid var(--n1)}
+.card-title{font-size:11px;font-weight:700;color:var(--n5);text-transform:uppercase;letter-spacing:.7px;margin-bottom:12px}
+
+/* ── Buttons ── */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:11px 18px;border-radius:var(--rad);font-size:14px;font-weight:700;
+  cursor:pointer;border:1.5px solid transparent;transition:all .12s;
+  font-family:inherit;text-decoration:none;line-height:1;
+}
+.btn:active{transform:scale(.96)}
+.btn-primary{background:var(--g7);color:#fff;border-color:var(--g7)}
+.btn-primary:hover{background:var(--g8)}
+.btn-secondary{background:#fff;color:var(--n7);border-color:var(--n3)}
+.btn-secondary:hover{background:var(--n0)}
+.btn-ghost{background:transparent;color:var(--n5);border-color:transparent;padding:8px}
+.btn-ghost:hover{background:var(--n1);color:var(--n7)}
+.btn-danger{background:var(--r0);color:var(--r7);border-color:var(--r1)}
+.btn-danger:hover{background:var(--r1)}
+.btn-sm{padding:7px 12px;font-size:13px;border-radius:8px}
+.btn-full{width:100%}
+.btn-icon{width:38px;height:38px;padding:0;border-radius:var(--rad)}
+
+/* ── Forms ── */
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg label{font-size:13px;font-weight:700;color:var(--n7)}
+.fg .hint{font-size:12px;color:var(--n5)}
+input[type=text],input[type=password],input[type=number],input[type=search],select,textarea{
+  width:100%;padding:10px 12px;
+  border:1.5px solid var(--n3);border-radius:var(--rad);
+  font-size:15px;font-family:inherit;color:var(--n9);
+  background:#fff;outline:none;transition:border-color .15s;
+  -webkit-appearance:none;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--g6);box-shadow:0 0 0 3px rgba(15,110,86,.12)}
+select{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7B72' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center;padding-right:36px;
+}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* ── Badges ── */
+.badge{display:inline-flex;align-items:center;gap:3px;padding:3px 9px;border-radius:20px;font-size:12px;font-weight:700}
+.bg{background:var(--g0);color:var(--g7)}
+.ba{background:var(--a0);color:var(--a7)}
+.br{background:var(--r0);color:var(--r7)}
+.bb{background:var(--b0);color:var(--b7)}
+
+/* ── Alerts ── */
+.alert{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:var(--rad);font-size:13px;line-height:1.5}
+.alert i{flex-shrink:0;font-size:17px;margin-top:1px}
+.alert-g{background:var(--g0);color:var(--g7)}
+.alert-a{background:var(--a0);color:var(--a7)}
+.alert-r{background:var(--r0);color:var(--r7)}
+
+/* ── Hero home ── */
+.hero{
+  background:linear-gradient(140deg,var(--g7) 0%,var(--g9) 100%);
+  border-radius:var(--rad-xl);padding:22px 20px 20px;color:#fff;
+}
+.hero h1{font-size:21px;font-weight:900;letter-spacing:-.5px;margin-bottom:2px}
+.hero p{font-size:13px;opacity:.75}
+.hero-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.hstat{background:rgba(255,255,255,.14);border-radius:10px;padding:10px 8px;text-align:center}
+.hstat-n{font-size:22px;font-weight:900;line-height:1}
+.hstat-l{font-size:10px;opacity:.75;margin-top:2px;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+
+/* ── Action cards ── */
+.act-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.act-card{
+  background:#fff;border-radius:var(--rad-lg);padding:18px 14px;
+  cursor:pointer;border:2px solid transparent;transition:all .15s;
+  display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;
+  border:1px solid var(--n1);
+}
+.act-card:hover{border-color:var(--g6);transform:translateY(-1px)}
+.act-card:active{transform:scale(.97)}
+.act-icon{font-size:26px;width:54px;height:54px;border-radius:14px;display:flex;align-items:center;justify-content:center}
+.act-card.emp .act-icon{background:var(--g0);color:var(--g7)}
+.act-card.mgr .act-icon{background:var(--b0);color:var(--b7)}
+.act-card h3{font-size:14px;font-weight:800;color:var(--n9)}
+.act-card p{font-size:12px;color:var(--n5);line-height:1.4}
+
+/* ── Stepper ── */
+.stepper{display:flex;align-items:flex-start;gap:0}
+.sp-item{display:flex;align-items:flex-start;flex:1}
+.sp-inner{display:flex;flex-direction:column;align-items:center;gap:4px}
+.sp-circle{
+  width:28px;height:28px;border-radius:50%;border:2px solid var(--n3);
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:800;color:var(--n5);background:#fff;flex-shrink:0;
+}
+.sp-item.done .sp-circle{background:var(--g7);border-color:var(--g7);color:#fff}
+.sp-item.act  .sp-circle{background:var(--g0);border-color:var(--g7);color:var(--g7)}
+.sp-label{font-size:10px;color:var(--n5);font-weight:600;white-space:nowrap}
+.sp-item.done .sp-label,.sp-item.act .sp-label{color:var(--g7)}
+.sp-line{flex:1;height:2px;background:var(--n3);margin:13px 4px 0;flex-shrink:0}
+.sp-item.done .sp-line{background:var(--g7)}
+
+/* ── Op picker ── */
+.op-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.op-opt{
+  border:2px solid var(--n3);border-radius:var(--rad);
+  padding:14px 10px;cursor:pointer;text-align:center;transition:all .15s;background:#fff;
+}
+.op-opt:hover{border-color:var(--n5)}
+.op-opt i{font-size:24px;display:block;margin-bottom:6px}
+.op-opt span{font-size:13px;font-weight:700}
+.op-opt.sel-out{border-color:var(--a4);background:var(--a0)}
+.op-opt.sel-in {border-color:var(--g6);background:var(--g0)}
+
+/* ── EPI grid ── */
+.epi-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.epi-card{
+  border:2px solid var(--n1);border-radius:var(--rad);
+  padding:12px 10px;cursor:pointer;transition:all .15s;background:#fff;
+  display:flex;flex-direction:column;
+}
+.epi-card:hover{border-color:var(--g6)}
+.epi-card.sel{border-color:var(--g7);background:var(--g0)}
+.epi-card.zero{opacity:.45;pointer-events:none}
+.epi-em{font-size:26px;margin-bottom:5px;line-height:1}
+.epi-nm{font-size:13px;font-weight:700;color:var(--n9);line-height:1.3}
+.epi-sz{font-size:11px;color:var(--n5);margin-top:1px}
+.epi-chip{display:inline-flex;align-items:center;gap:3px;margin-top:6px;padding:2px 7px;border-radius:20px;font-size:11px;font-weight:700}
+
+/* ── Qty ── */
+.qty-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 12px;background:var(--n0);border-radius:var(--rad);gap:8px;
+}
+.qty-nm{flex:1;font-size:13px;font-weight:600;color:var(--n9)}
+.qty-ctrl{display:flex;align-items:center;gap:8px}
+.qty-btn{
+  width:32px;height:32px;border-radius:50%;border:1.5px solid var(--n3);
+  background:#fff;cursor:pointer;font-size:20px;line-height:1;
+  display:flex;align-items:center;justify-content:center;color:var(--n7);
+  transition:all .1s;font-weight:300;
+}
+.qty-btn:hover{border-color:var(--g6);color:var(--g7)}
+.qty-btn:active{transform:scale(.88)}
+.qty-num{font-size:16px;font-weight:800;min-width:24px;text-align:center}
+
+/* ── Confirm lines ── */
+.cf-line{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--n1)}
+.cf-line:last-child{border-bottom:none}
+.cf-k{font-size:13px;color:var(--n5)}
+.cf-v{font-size:13px;font-weight:700;color:var(--n9)}
+
+/* ── Success ── */
+.success-wrap{text-align:center;padding:24px 16px}
+.success-icon{width:72px;height:72px;border-radius:50%;background:var(--g0);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:36px}
+
+/* ── Tabs ── */
+.tab-bar{
+  display:flex;overflow-x:auto;border-bottom:1px solid var(--n1);
+  margin:-16px -16px 0;padding:0 16px;-webkit-overflow-scrolling:touch;
+  scrollbar-width:none;flex-shrink:0;background:#fff;
+}
+.tab-bar::-webkit-scrollbar{display:none}
+.tab-btn{
+  padding:13px 14px;font-size:13px;font-weight:700;
+  color:var(--n5);border-bottom:2.5px solid transparent;
+  white-space:nowrap;cursor:pointer;flex-shrink:0;transition:all .15s;
+}
+.tab-btn.act{color:var(--g7);border-bottom-color:var(--g7)}
+.tab-pane{display:none;flex-direction:column;gap:14px;padding-top:16px}
+.tab-pane.active{display:flex}
+
+/* ── Metrics ── */
+.met-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.met{background:var(--n0);border-radius:var(--rad);padding:13px}
+.met-l{font-size:11px;color:var(--n5);font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.met-v{font-size:26px;font-weight:900;color:var(--n9);margin-top:2px}
+.met-s{font-size:11px;color:var(--n5);margin-top:2px}
+
+/* ── Stock rows ── */
+.st-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--n1)}
+.st-row:last-child{border-bottom:none}
+.st-em{font-size:20px;flex-shrink:0}
+.st-info{flex:1;min-width:0}
+.st-nm{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st-sub{font-size:11px;color:var(--n5);margin-top:1px}
+.st-bar-w{height:4px;background:var(--n1);border-radius:2px;margin-top:5px;overflow:hidden}
+.st-bar{height:100%;border-radius:2px;transition:width .4s}
+
+/* ── Log ── */
+.log-item{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--n1)}
+.log-item:last-child{border-bottom:none}
+.log-dot{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px}
+.log-dot.out{background:var(--a0);color:var(--a7)}
+.log-dot.in {background:var(--g0);color:var(--g7)}
+.log-dot.adj{background:var(--b0);color:var(--b7)}
+.log-nm{font-size:13px;font-weight:700;color:var(--n9)}
+.log-dt{font-size:12px;color:var(--n5);margin-top:2px;line-height:1.4}
+.log-ts{font-size:11px;color:var(--n3);margin-top:3px}
+
+/* ── Inv table ── */
+.inv-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.inv-table{width:100%;border-collapse:collapse;font-size:13px}
+.inv-table th{text-align:left;padding:6px 8px;font-size:11px;font-weight:700;color:var(--n5);text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--n1);white-space:nowrap}
+.inv-table td{padding:8px;border-bottom:1px solid var(--n1);vertical-align:middle}
+.inv-table tr:last-child td{border-bottom:none}
+
+/* ── Scroll list ── */
+.scroll-l{max-height:280px;overflow-y:auto;padding-right:2px}
+.scroll-l::-webkit-scrollbar{width:3px}
+.scroll-l::-webkit-scrollbar-thumb{background:var(--n3);border-radius:2px}
+
+/* ── Loader overlay ── */
+#loader{
+  position:fixed;inset:0;background:rgba(240,244,242,.85);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:9000;gap:12px;
+}
+#loader.hide{display:none}
+.spinner{
+  width:36px;height:36px;border:3px solid var(--n1);
+  border-top-color:var(--g7);border-radius:50%;
+  animation:spin .7s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loader p{font-size:14px;font-weight:600;color:var(--n5)}
+
+/* ── Toast ── */
+#toast{
+  position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:var(--n9);color:#fff;padding:11px 18px;border-radius:var(--rad);
+  font-size:13px;font-weight:600;white-space:nowrap;z-index:9999;
+  transition:transform .25s cubic-bezier(.34,1.56,.64,1),opacity .2s;
+  opacity:0;pointer-events:none;display:flex;align-items:center;gap:7px;max-width:90vw;
+}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+#toast.tg{background:var(--g7)}
+#toast.ta{background:var(--a7)}
+#toast.tr{background:var(--r7)}
+
+/* ── Login ── */
+.login-icon-wrap{text-align:center;padding:24px 0 8px}
+.login-icon-wrap i{font-size:52px;color:var(--n3)}
+
+/* ── Catalog list ── */
+.cat-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--n1)}
+.cat-item:last-child{border-bottom:none}
+
+/* ── Offline banner ── */
+#offline-bar{
+  background:var(--r7);color:#fff;text-align:center;
+  font-size:12px;font-weight:600;padding:6px;display:none;
+}
+
+@media(max-width:360px){
+  .g2,.act-grid,.epi-grid,.op-grid,.met-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ╔══════════════════════════════╗
+     ║   EDITA ESTA LÍNEA           ║
+     ╚══════════════════════════════╝ -->
+<script>
+// ← PEGA AQUÍ LA URL DE TU APPS SCRIPT (ver README paso 3)
+const API_URL = 'PEGA_AQUI_TU_URL_DE_APPS_SCRIPT';
+</script>
+
+<div id="offline-bar">📡 Sin conexión — comprueba tu red</div>
+
+<div class="app">
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-logo">⛑️ EPI Control</div>
+  <div class="topbar-right">
+    <span id="tb-badge"></span>
+    <button class="btn btn-ghost btn-icon" id="btn-back" onclick="goBack()" style="display:none" aria-label="Volver">
+      <i class="ti ti-arrow-left" style="font-size:20px"></i>
+    </button>
+  </div>
+</div>
+
+<!-- ═════ HOME ═════ -->
+<div id="page-home" class="page active">
+  <div class="hero">
+    <h1>Almacén de EPIs</h1>
+    <p>Equipos de Protección Individual</p>
+    <div class="hero-stats">
+      <div class="hstat"><div class="hstat-n" id="hs-epis">—</div><div class="hstat-l">EPIs</div></div>
+      <div class="hstat"><div class="hstat-n" id="hs-mov">—</div><div class="hstat-l">Hoy</div></div>
+      <div class="hstat"><div class="hstat-n" id="hs-alerts">—</div><div class="hstat-l">Alertas</div></div>
+    </div>
+  </div>
+  <div id="home-alert"></div>
+  <div class="act-grid">
+    <div class="act-card emp" onclick="goto('page-identify')" tabindex="0">
+      <div class="act-icon"><i class="ti ti-user-check" style="font-size:26px"></i></div>
+      <h3>Soy empleado</h3>
+      <p>Retirar o devolver equipos de protección</p>
+    </div>
+    <div class="act-card mgr" onclick="goto('page-login')" tabindex="0">
+      <div class="act-icon"><i class="ti ti-shield-lock" style="font-size:26px"></i></div>
+      <h3>Gestor</h3>
+      <p>Inventario, configuración y reportes</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═════ IDENTIFY ═════ -->
+<div id="page-identify" class="page">
+  <div class="stepper">
+    <div class="sp-item act" id="sp1">
+      <div class="sp-inner"><div class="sp-circle">1</div><div class="sp-label">Datos</div></div>
+      <div class="sp-line"></div>
+    </div>
+    <div class="sp-item" id="sp2">
+      <div class="sp-inner"><div class="sp-circle">2</div><div class="sp-label">EPIs</div></div>
+      <div class="sp-line"></div>
+    </div>
+    <div class="sp-item" id="sp3">
+      <div class="sp-inner"><div class="sp-circle">3</div><div class="sp-label">Confirmar</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Tus datos</div>
+    <div class="g2" style="margin-bottom:12px">
+      <div class="fg"><label>Nombre</label><input type="text" id="f-nom" placeholder="Tu nombre" autocomplete="given-name"></div>
+      <div class="fg"><label>Apellidos</label><input type="text" id="f-ape" placeholder="Apellidos" autocomplete="family-name"></div>
+    </div>
+    <div class="fg" style="margin-bottom:16px">
+      <label>DNI / NIE</label>
+      <input type="text" id="f-dni" placeholder="12345678A" maxlength="10" autocomplete="off" style="text-transform:uppercase">
+    </div>
+    <div class="card-title" style="margin-bottom:10px">Tipo de operación</div>
+    <div class="op-grid">
+      <div class="op-opt" id="op-ret" onclick="selOp('retirar')" tabindex="0">
+        <i class="ti ti-arrow-up-right" style="color:var(--a7)"></i>
+        <span>Retirar EPIs</span>
+      </div>
+      <div class="op-opt" id="op-dev" onclick="selOp('devolver')" tabindex="0">
+        <i class="ti ti-arrow-down-left" style="color:var(--g7)"></i>
+        <span>Devolver EPIs</span>
+      </div>
+    </div>
+  </div>
+  <button class="btn btn-primary btn-full" onclick="continueIdentify()">
+    Seleccionar EPIs <i class="ti ti-arrow-right"></i>
+  </button>
+</div>
+
+<!-- ═════ SELECT ═════ -->
+<div id="page-select" class="page">
+  <div class="stepper">
+    <div class="sp-item done">
+      <div class="sp-inner"><div class="sp-circle"><i class="ti ti-check" style="font-size:12px"></i></div><div class="sp-label">Datos</div></div>
+      <div class="sp-line"></div>
+    </div>
+    <div class="sp-item act">
+      <div class="sp-inner"><div class="sp-circle">2</div><div class="sp-label">EPIs</div></div>
+      <div class="sp-line"></div>
+    </div>
+    <div class="sp-item">
+      <div class="sp-inner"><div class="sp-circle">3</div><div class="sp-label">Confirmar</div></div>
+    </div>
+  </div>
+  <div class="card" style="padding-bottom:12px">
+    <input type="search" id="epi-q" placeholder="🔍  Buscar EPI..." oninput="renderGrid()" style="margin-bottom:12px">
+    <div class="scroll-l"><div class="epi-grid" id="epi-grid"></div></div>
+  </div>
+  <div id="qty-sec" style="display:none">
+    <div class="card">
+      <div class="card-title" id="qty-title">Cantidad a retirar</div>
+      <div id="qty-rows" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+  </div>
+  <button class="btn btn-primary btn-full" onclick="goConfirm()">
+    Ver resumen <i class="ti ti-arrow-right"></i>
+  </button>
+</div>
+
+<!-- ═════ CONFIRM ═════ -->
+<div id="page-confirm" class="page">
+  <div class="stepper">
+    <div class="sp-item done">
+      <div class="sp-inner"><div class="sp-circle"><i class="ti ti-check" style="font-size:12px"></i></div><div class="sp-label">Datos</div></div>
+      <div class="sp-line"></div>
+    </div>
+    <div class="sp-item done">
+      <div class="sp-inner"><div class="sp-circle"><i class="ti ti-check" style="font-size:12px"></i></div><div class="sp-label">EPIs</div></div>
+      <div class="sp-line"></div>
+    </div>
+    <div class="sp-item act">
+      <div class="sp-inner"><div class="sp-circle">3</div><div class="sp-label">Confirmar</div></div>
+    </div>
+  </div>
+  <div class="card"><div id="confirm-body"></div></div>
+  <div class="alert alert-a">
+    <i class="ti ti-info-circle"></i>
+    <span>Al confirmar, aceptas la responsabilidad sobre los EPIs indicados. Tu nombre y DNI quedan registrados.</span>
+  </div>
+  <button class="btn btn-primary btn-full" onclick="doConfirm()">
+    <i class="ti ti-check"></i> Confirmar y registrar
+  </button>
+</div>
+
+<!-- ═════ SUCCESS ═════ -->
+<div id="page-success" class="page">
+  <div class="card success-wrap">
+    <div class="success-icon">✅</div>
+    <h2 style="font-size:18px;font-weight:900;margin-bottom:6px">¡Registrado!</h2>
+    <p id="suc-msg" style="font-size:14px;color:var(--n5)"></p>
+  </div>
+  <div class="card" id="suc-detail"></div>
+  <button class="btn btn-secondary btn-full" onclick="resetEmployee()">Nueva operación</button>
+  <button class="btn btn-ghost btn-full" onclick="goto('page-home')">Volver al inicio</button>
+</div>
+
+<!-- ═════ LOGIN ═════ -->
+<div id="page-login" class="page">
+  <div class="login-icon-wrap"><i class="ti ti-lock"></i></div>
+  <div class="card">
+    <div class="card-title">Acceso gestor</div>
+    <div class="fg" style="margin-bottom:12px">
+      <label>Contraseña</label>
+      <input type="password" id="mgr-pw" placeholder="Introduce la contraseña" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div id="login-err" class="alert alert-r" style="display:none;margin-bottom:12px">
+      <i class="ti ti-x"></i><span>Contraseña incorrecta.</span>
+    </div>
+    <button class="btn btn-primary btn-full" onclick="doLogin()">Entrar</button>
+  </div>
+  <p style="text-align:center;font-size:12px;color:var(--n5)">Contraseña por defecto: <code style="background:var(--n1);padding:2px 6px;border-radius:4px;font-size:12px">admin123</code></p>
+</div>
+
+<!-- ═════ MANAGER ═════ -->
+<div id="page-manager" class="page">
+  <div class="tab-bar">
+    <div class="tab-btn act" onclick="switchTab('t-dash')">Dashboard</div>
+    <div class="tab-btn" onclick="switchTab('t-inv')">Inventario</div>
+    <div class="tab-btn" onclick="switchTab('t-log')">Historial</div>
+    <div class="tab-btn" onclick="switchTab('t-cat')">Catálogo</div>
+    <div class="tab-btn" onclick="switchTab('t-cfg')">Ajustes</div>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="t-dash" class="tab-pane active">
+    <div class="met-grid" id="dash-met"></div>
+    <div id="dash-alr"></div>
+    <div class="card">
+      <div class="card-title">Estado del stock</div>
+      <div id="dash-stock"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Últimos movimientos</div>
+      <div id="dash-recent"></div>
+    </div>
+  </div>
+
+  <!-- Inventario -->
+  <div id="t-inv" class="tab-pane">
+    <div class="card">
+      <div class="card-title">Ajuste de stock</div>
+      <div class="fg" style="margin-bottom:10px">
+        <label>EPI / Talla</label>
+        <select id="adj-sel"></select>
+      </div>
+      <div class="g2" style="margin-bottom:10px">
+        <div class="fg"><label>Cantidad (+/-)</label><input type="number" id="adj-qty" placeholder="ej: 10 ó -3"></div>
+        <div class="fg"><label>Motivo</label><input type="text" id="adj-why" placeholder="Reposición..."></div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="doAdj()">Aplicar ajuste</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Tabla de inventario</div>
+      <div class="inv-wrap">
+        <table class="inv-table">
+          <thead><tr><th>EPI</th><th>Stock</th><th>Mín.</th><th>Estado</th></tr></thead>
+          <tbody id="inv-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Historial -->
+  <div id="t-log" class="tab-pane">
+    <div style="display:flex;gap:8px">
+      <input type="search" id="log-q" placeholder="Buscar nombre, DNI…" oninput="renderLog()" style="flex:1">
+      <button class="btn btn-secondary btn-sm" onclick="exportCSV()"><i class="ti ti-download"></i> CSV</button>
+    </div>
+    <div class="card"><div id="log-list"></div></div>
+  </div>
+
+  <!-- Catálogo -->
+  <div id="t-cat" class="tab-pane">
+    <div class="card">
+      <div class="card-title">Añadir nuevo EPI</div>
+      <div class="fg" style="margin-bottom:10px"><label>Nombre</label><input type="text" id="new-nm" placeholder="ej: Gafas antipolvo"></div>
+      <div class="g2" style="margin-bottom:10px">
+        <div class="fg"><label>Emoji</label><input type="text" id="new-ic" placeholder="🦺" maxlength="4"></div>
+        <div class="fg">
+          <label>Tipo de tallas</label>
+          <select id="new-sz">
+            <option value="none">Sin tallas</option>
+            <option value="shoe">Calzado (35–47)</option>
+            <option value="cloth">Ropa (XS–XXXL)</option>
+          </select>
+        </div>
+      </div>
+      <div class="g2" style="margin-bottom:14px">
+        <div class="fg"><label>Stock inicial</label><input type="number" id="new-st" value="0" min="0"></div>
+        <div class="fg"><label>Stock mínimo</label><input type="number" id="new-mn" value="5" min="0"></div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="doAddEPI()"><i class="ti ti-plus"></i> Añadir EPI</button>
+    </div>
+    <div class="card">
+      <div class="card-title">EPIs en catálogo</div>
+      <div id="cat-list"></div>
+    </div>
+  </div>
+
+  <!-- Ajustes -->
+  <div id="t-cfg" class="tab-pane">
+    <div class="card">
+      <div class="card-title">Emails de notificación</div>
+      <div class="fg" style="margin-bottom:10px">
+        <label>Responsables (uno por línea)</label>
+        <textarea id="cfg-emails" rows="4" placeholder="gestor@empresa.com&#10;seguridad@empresa.com"></textarea>
+      </div>
+      <p class="hint" style="margin-bottom:10px">Recibirán alertas de stock bajo y el resumen mensual.</p>
+      <button class="btn btn-primary btn-sm" onclick="saveEmails()">Guardar emails</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Cambiar contraseña</div>
+      <div class="fg" style="margin-bottom:10px">
+        <label>Nueva contraseña (mín. 4 caracteres)</label>
+        <input type="password" id="cfg-pw" placeholder="Nueva contraseña">
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="doChangePass()">Cambiar contraseña</button>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--r7)">Recargar datos</div>
+      <p style="font-size:13px;color:var(--n5);margin-bottom:10px">Si detectas datos desactualizados, fuerza una recarga desde Google Sheets.</p>
+      <button class="btn btn-secondary btn-sm" onclick="loadAll(true)"><i class="ti ti-refresh"></i> Recargar</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /.app -->
+
+<div id="loader" class="hide">
+  <div class="spinner"></div>
+  <p id="loader-msg">Cargando...</p>
+</div>
+<div id="toast"></div>
+
+<!-- ═══════════════════════════════════════════ JS ══ -->
+<script>
+// ─── Tallas ───────────────────────────────────────
+const SHOE  = ['35','36','37','38','39','40','41','42','43','44','45','46','47'];
+const CLOTH = ['XS','S','M','L','XL','XXL','XXXL'];
+
+// ─── Estado en memoria ────────────────────────────
+let EPIS = [];
+let LOG  = [];
+let EMAILS = [];
+let SESSION = { user: null, op: null, sel: [], qtys: {} };
+let currentOp = null;
+
+// ─── Cache ────────────────────────────────────────
+let lastLoad = 0;
+const CACHE_MS = 30000; // 30 segundos
+
+// ─── Navegación ───────────────────────────────────
+const stack = ['page-home'];
+
+function goto(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  stack.push(id);
+  updateTopbar();
+  window.scrollTo(0, 0);
+  if (id === 'page-home')    renderHome();
+  if (id === 'page-select')  renderGrid();
+  if (id === 'page-manager') renderManager();
+}
+
+function goBack() {
+  if (stack.length > 1) {
+    stack.pop();
+    const prev = stack[stack.length - 1];
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById(prev).classList.add('active');
+    updateTopbar();
+    window.scrollTo(0, 0);
+    if (prev === 'page-home') renderHome();
+  }
+}
+
+function updateTopbar() {
+  const cur = stack[stack.length - 1];
+  document.getElementById('btn-back').style.display =
+    (stack.length > 1 && cur !== 'page-home') ? '' : 'none';
+  const badge = document.getElementById('tb-badge');
+  if (cur === 'page-manager') {
+    badge.innerHTML = '<span class="badge bb"><i class="ti ti-shield-check" style="font-size:11px"></i> Gestor</span>';
+  } else { badge.innerHTML = ''; }
+}
+
+// ─── Loader ───────────────────────────────────────
+function showLoader(msg) {
+  document.getElementById('loader-msg').textContent = msg || 'Cargando...';
+  document.getElementById('loader').classList.remove('hide');
+}
+function hideLoader() {
+  document.getElementById('loader').classList.add('hide');
+}
+
+// ─── API calls ────────────────────────────────────
+async function apiGet(action) {
+  const url = API_URL + '?action=' + action + '&t=' + Date.now();
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('Error HTTP ' + r.status);
+  return r.json();
+}
+
+async function apiPost(body) {
+  const r = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error('Error HTTP ' + r.status);
+  return r.json();
+}
+
+// ─── Cargar datos ─────────────────────────────────
+async function loadAll(force) {
+  if (!force && Date.now() - lastLoad < CACHE_MS) return;
+  showLoader('Cargando inventario...');
+  try {
+    const [eRes, lRes, cRes] = await Promise.all([
+      apiGet('getEPIs'),
+      apiGet('getLog'),
+      apiGet('getConfig')
+    ]);
+    EPIS   = eRes.epis   || [];
+    LOG    = lRes.log    || [];
+    EMAILS = cRes.emails || [];
+    lastLoad = Date.now();
+    setOffline(false);
+  } catch (e) {
+    setOffline(true);
+    toast('Error al conectar con el servidor', 'r');
+  } finally {
+    hideLoader();
+  }
+}
+
+function setOffline(v) {
+  document.getElementById('offline-bar').style.display = v ? '' : 'none';
+}
+
+// ─── HOME ─────────────────────────────────────────
+function renderHome() {
+  const today  = new Date().toDateString();
+  const movHoy = LOG.filter(l => new Date(l.ts).toDateString() === today).length;
+  const alerts = EPIS.filter(e => hasLow(e)).length;
+
+  document.getElementById('hs-epis').textContent   = EPIS.length;
+  document.getElementById('hs-mov').textContent    = movHoy;
+  document.getElementById('hs-alerts').textContent = alerts;
+
+  const banner = document.getElementById('home-alert');
+  banner.innerHTML = alerts > 0
+    ? `<div class="alert alert-a"><i class="ti ti-alert-triangle"></i><span>${alerts} EPI(s) con stock bajo mínimo. El gestor ha sido notificado.</span></div>`
+    : '';
+}
+
+function hasLow(epi) {
+  return Object.keys(epi.stock).some(k =>
+    (epi.stock[k] || 0) < ((epi.minStock && epi.minStock[k]) || 0));
+}
+
+function stockStat(epi) {
+  let total = 0, minT = 0, low = 0;
+  Object.keys(epi.stock).forEach(k => {
+    total += epi.stock[k] || 0;
+    minT  += (epi.minStock && epi.minStock[k]) || 0;
+    if ((epi.stock[k] || 0) < ((epi.minStock && epi.minStock[k]) || 0)) low++;
+  });
+  const pct = minT > 0 ? Math.min(100, Math.round(total / minT * 50)) : 100;
+  return { total, minT, low, pct };
+}
+
+// ─── IDENTIFY ─────────────────────────────────────
+function selOp(op) {
+  currentOp = op;
+  document.getElementById('op-ret').className = 'op-opt' + (op === 'retirar' ? ' sel-out' : '');
+  document.getElementById('op-dev').className = 'op-opt' + (op === 'devolver' ? ' sel-in'  : '');
+}
+
+function continueIdentify() {
+  const n = document.getElementById('f-nom').value.trim();
+  const a = document.getElementById('f-ape').value.trim();
+  const d = document.getElementById('f-dni').value.trim().toUpperCase();
+  if (!n || !a) { toast('Introduce nombre y apellidos', 'a'); return; }
+  if (!d)       { toast('Introduce tu DNI o NIE', 'a'); return; }
+  if (!currentOp) { toast('Selecciona el tipo de operación', 'a'); return; }
+  SESSION = { user: { nombre: n, apellidos: a, dni: d }, op: currentOp, sel: [], qtys: {} };
+  document.getElementById('qty-title').textContent = 'Cantidad a ' + currentOp;
+  goto('page-select');
+}
+
+// ─── SELECT ───────────────────────────────────────
+function renderGrid() {
+  const grid = document.getElementById('epi-grid');
+  grid.innerHTML = '';
+  const q = (document.getElementById('epi-q').value || '').toLowerCase();
+
+  EPIS.forEach(epi => {
+    const sizes = epi.tallas === 'shoe' ? SHOE : epi.tallas === 'cloth' ? CLOTH : ['_'];
+    sizes.forEach(sz => {
+      const label = epi.nombre + (sz !== '_' ? ' T.' + sz : '');
+      if (q && !label.toLowerCase().includes(q)) return;
+      const key = epi.id + '|' + sz;
+      const st  = epi.stock[sz] || 0;
+      const sel = SESSION.sel.includes(key);
+      const isOut = SESSION.op === 'retirar';
+      const zero  = isOut && st === 0;
+      const chipCls = st === 0 ? 'br' : st <= ((epi.minStock && epi.minStock[sz]) || 0) ? 'ba' : 'bg';
+      const card = document.createElement('div');
+      card.className = 'epi-card' + (sel ? ' sel' : '') + (zero ? ' zero' : '');
+      card.innerHTML = `<span class="epi-em">${epi.icono}</span>
+        <div class="epi-nm">${epi.nombre}</div>
+        ${sz !== '_' ? `<div class="epi-sz">Talla ${sz}</div>` : ''}
+        <span class="epi-chip badge ${chipCls}">Stock: ${st}</span>`;
+      card.onclick = () => toggleSel(key, label, st, epi);
+      grid.appendChild(card);
+    });
+  });
+  renderQtyRows();
+}
+
+function toggleSel(key, label, stock, epi) {
+  const idx = SESSION.sel.indexOf(key);
+  if (idx >= 0) {
+    SESSION.sel.splice(idx, 1);
+    delete SESSION.qtys[key];
+  } else {
+    SESSION.sel.push(key);
+    const [epiId, sz] = key.split('|');
+    SESSION.qtys[key] = { label, qty: 1, stock, epiId: epi.id, epiNombre: epi.nombre, talla: sz };
+  }
+  renderGrid();
+}
+
+function renderQtyRows() {
+  const sec  = document.getElementById('qty-sec');
+  const cont = document.getElementById('qty-rows');
+  if (!SESSION.sel.length) { sec.style.display = 'none'; return; }
+  sec.style.display = '';
+  cont.innerHTML = '';
+  SESSION.sel.forEach(key => {
+    const q    = SESSION.qtys[key];
+    const maxQ = SESSION.op === 'retirar' ? q.stock : 999;
+    const sk   = key.replace(/[^a-z0-9]/gi, '_');
+    const row  = document.createElement('div');
+    row.className = 'qty-row';
+    row.innerHTML = `<span class="qty-nm">${q.label}</span>
+      <div class="qty-ctrl">
+        <button class="qty-btn" onclick="adjQ('${key}',-1)">−</button>
+        <span class="qty-num" id="qn_${sk}">${q.qty}</span>
+        <button class="qty-btn" onclick="adjQ('${key}',1)">+</button>
+      </div>`;
+    cont.appendChild(row);
+  });
+}
+
+function adjQ(key, d) {
+  const q = SESSION.qtys[key];
+  if (!q) return;
+  const maxQ = SESSION.op === 'retirar' ? q.stock : 999;
+  q.qty = Math.max(1, Math.min(maxQ, q.qty + d));
+  const sk = key.replace(/[^a-z0-9]/gi, '_');
+  const el = document.getElementById('qn_' + sk);
+  if (el) el.textContent = q.qty;
+}
+
+function goConfirm() {
+  if (!SESSION.sel.length) { toast('No has seleccionado ningún EPI', 'a'); return; }
+  renderConfirm();
+  goto('page-confirm');
+}
+
+// ─── CONFIRM ──────────────────────────────────────
+function renderConfirm() {
+  const u  = SESSION.user;
+  const op = SESSION.op;
+  const badgeCls = op === 'retirar' ? 'ba' : 'bg';
+  const badgeTxt = op === 'retirar' ? 'Retirada' : 'Devolución';
+  let html = `
+    <div class="cf-line"><span class="cf-k">Empleado</span><span class="cf-v">${u.nombre} ${u.apellidos}</span></div>
+    <div class="cf-line"><span class="cf-k">DNI / NIE</span><span class="cf-v">${u.dni}</span></div>
+    <div class="cf-line"><span class="cf-k">Operación</span><span class="cf-v"><span class="badge ${badgeCls}">${badgeTxt}</span></span></div>
+  `;
+  SESSION.sel.forEach(key => {
+    const q = SESSION.qtys[key];
+    html += `<div class="cf-line"><span class="cf-k">${q.label}</span><span class="cf-v">× ${q.qty}</span></div>`;
+  });
+  document.getElementById('confirm-body').innerHTML = html;
+}
+
+async function doConfirm() {
+  if (!SESSION.sel.length) return;
+  showLoader('Registrando...');
+  try {
+    const items = SESSION.sel.map(key => {
+      const q = SESSION.qtys[key];
+      return { epiId: q.epiId, epiNombre: q.epiNombre, talla: q.talla, qty: q.qty };
+    });
+    const res = await apiPost({
+      action: 'registerMove',
+      op:     SESSION.op,
+      user:   SESSION.user,
+      items,
+      reason: ''
+    });
+    if (res.error) throw new Error(res.error);
+
+    // Actualizar stock local
+    SESSION.sel.forEach(key => {
+      const q    = SESSION.qtys[key];
+      const epi  = EPIS.find(e => e.id === q.epiId);
+      if (!epi) return;
+      const delta = SESSION.op === 'retirar' ? -q.qty : q.qty;
+      epi.stock[q.talla] = Math.max(0, (epi.stock[q.talla] || 0) + delta);
+    });
+
+    // Añadir al log local
+    LOG.unshift({
+      id: res.id || Date.now().toString(),
+      ts: new Date().toISOString(),
+      op: SESSION.op,
+      user: SESSION.user,
+      items: SESSION.sel.map(key => ({ label: SESSION.qtys[key].label, qty: SESSION.qtys[key].qty })),
+      reason: ''
+    });
+
+    document.getElementById('suc-msg').textContent =
+      SESSION.op === 'retirar'
+        ? 'Los EPIs han sido descontados del inventario.'
+        : 'Los EPIs han sido devueltos al inventario. ¡Gracias!';
+    document.getElementById('suc-detail').innerHTML =
+      '<div class="card-title">Detalle</div>' +
+      SESSION.sel.map(key => {
+        const q = SESSION.qtys[key];
+        return `<div class="cf-line"><span class="cf-k">${q.label}</span><span class="cf-v">× ${q.qty}</span></div>`;
+      }).join('');
+
+    goto('page-success');
+  } catch(e) {
+    toast('Error al registrar. Comprueba la conexión.', 'r');
+  } finally {
+    hideLoader();
+  }
+}
+
+function resetEmployee() {
+  SESSION = { user: null, op: null, sel: [], qtys: {} };
+  currentOp = null;
+  ['f-nom','f-ape','f-dni'].forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('op-ret').className = 'op-opt';
+  document.getElementById('op-dev').className = 'op-opt';
+  goto('page-identify');
+}
+
+// ─── LOGIN ────────────────────────────────────────
+async function doLogin() {
+  const pw  = document.getElementById('mgr-pw').value;
+  const err = document.getElementById('login-err');
+  showLoader('Verificando...');
+  try {
+    const res = await apiPost({ action: 'checkPass', pass: pw });
+    if (res.ok) {
+      err.style.display = 'none';
+      document.getElementById('mgr-pw').value = '';
+      goto('page-manager');
+    } else {
+      err.style.display = 'flex';
+    }
+  } catch(e) {
+    toast('Error de conexión', 'r');
+  } finally {
+    hideLoader();
+  }
+}
+
+// ─── MANAGER ──────────────────────────────────────
+function renderManager() {
+  renderDash();
+  renderInvTab();
+  renderLog();
+  renderCat();
+  renderCfg();
+}
+
+function switchTab(id) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('act'));
+  document.getElementById(id).classList.add('active');
+  const tabs = ['t-dash','t-inv','t-log','t-cat','t-cfg'];
+  document.querySelectorAll('.tab-btn')[tabs.indexOf(id)].classList.add('act');
+  if (id === 't-inv') renderInvTab();
+  if (id === 't-log') renderLog();
+  if (id === 't-cat') renderCat();
+  if (id === 't-cfg') renderCfg();
+}
+
+function renderDash() {
+  const today  = new Date().toDateString();
+  const movHoy = LOG.filter(l => new Date(l.ts).toDateString() === today).length;
+  const alerts = EPIS.filter(e => hasLow(e));
+  const total  = EPIS.reduce((a, e) => a + Object.values(e.stock).reduce((x, v) => x + v, 0), 0);
+
+  document.getElementById('dash-met').innerHTML = `
+    <div class="met"><div class="met-l">EPIs catálogo</div><div class="met-v">${EPIS.length}</div></div>
+    <div class="met"><div class="met-l">Mov. hoy</div><div class="met-v">${movHoy}</div></div>
+    <div class="met"><div class="met-l">Unidades stock</div><div class="met-v">${total}</div></div>
+    <div class="met"><div class="met-l">Alertas</div><div class="met-v" style="color:${alerts.length?'var(--r7)':'var(--g7)'}">${alerts.length}</div></div>
+  `;
+
+  document.getElementById('dash-alr').innerHTML = alerts.length
+    ? `<div class="alert alert-r"><i class="ti ti-alert-triangle"></i><div><strong>Stock crítico:</strong> ${alerts.map(e=>e.nombre).join(', ')}</div></div>`
+    : `<div class="alert alert-g"><i class="ti ti-check"></i><span>Todos los stocks están por encima del mínimo.</span></div>`;
+
+  const stEl = document.getElementById('dash-stock');
+  stEl.innerHTML = '';
+  EPIS.forEach(epi => {
+    const s  = stockStat(epi);
+    const c  = s.pct < 50 ? 'var(--r7)' : s.pct < 80 ? 'var(--a4)' : 'var(--g6)';
+    const bc = s.pct < 50 ? 'br' : s.pct < 80 ? 'ba' : 'bg';
+    const bt = s.pct < 50 ? 'Crítico' : s.pct < 80 ? 'Bajo' : 'OK';
+    const row = document.createElement('div');
+    row.className = 'st-row';
+    row.innerHTML = `<span class="st-em">${epi.icono}</span>
+      <div class="st-info">
+        <div class="st-nm">${epi.nombre}</div>
+        <div class="st-sub">Total: ${s.total} · Mínimo: ${s.minT}</div>
+        <div class="st-bar-w"><div class="st-bar" style="width:${s.pct}%;background:${c}"></div></div>
+      </div>
+      <span class="badge ${bc}" style="flex-shrink:0;margin-left:8px">${bt}</span>`;
+    stEl.appendChild(row);
+  });
+
+  const rEl = document.getElementById('dash-recent');
+  rEl.innerHTML = '';
+  if (!LOG.length) {
+    rEl.innerHTML = '<p style="font-size:13px;color:var(--n5);text-align:center;padding:12px 0">Sin movimientos aún.</p>';
+  } else {
+    LOG.slice(0, 5).forEach(e => rEl.appendChild(buildLogItem(e)));
+  }
+}
+
+// ─── INVENTARIO ───────────────────────────────────
+function renderInvTab() {
+  const sel = document.getElementById('adj-sel');
+  sel.innerHTML = '';
+  EPIS.forEach(epi => {
+    const sizes = epi.tallas === 'shoe' ? SHOE : epi.tallas === 'cloth' ? CLOTH : ['_'];
+    sizes.forEach(sz => {
+      const opt = document.createElement('option');
+      opt.value = epi.id + '|' + sz + '|' + epi.nombre;
+      opt.textContent = epi.nombre + (sz !== '_' ? ' T.' + sz : '');
+      sel.appendChild(opt);
+    });
+  });
+
+  const tbody = document.getElementById('inv-body');
+  tbody.innerHTML = '';
+  EPIS.forEach(epi => {
+    const sizes = epi.tallas === 'shoe' ? SHOE : epi.tallas === 'cloth' ? CLOTH : ['_'];
+    sizes.forEach(sz => {
+      const st = epi.stock[sz] || 0;
+      const mn = (epi.minStock && epi.minStock[sz]) || 0;
+      const ok = st >= mn;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td style="font-weight:600">${epi.icono} ${epi.nombre}${sz !== '_' ? ' T.' + sz : ''}</td>
+        <td style="font-weight:800;color:${ok?'var(--n9)':'var(--r7)'}">${st}</td>
+        <td style="color:var(--n5)">${mn}</td>
+        <td><span class="badge ${ok?'bg':'br'}">${ok?'OK':'Bajo'}</span></td>`;
+      tbody.appendChild(tr);
+    });
+  });
+}
+
+async function doAdj() {
+  const val  = document.getElementById('adj-sel').value;
+  const qty  = parseInt(document.getElementById('adj-qty').value);
+  const why  = document.getElementById('adj-why').value.trim() || 'Ajuste manual';
+  if (!val || isNaN(qty) || qty === 0) { toast('Completa todos los campos', 'a'); return; }
+  const [epiId, sz, ...nomParts] = val.split('|');
+  const epiNombre = nomParts.join('|');
+  showLoader('Aplicando ajuste...');
+  try {
+    const res = await apiPost({ action: 'adjustStock', epiId, talla: sz, delta: qty, reason: why, epiNombre });
+    if (res.error) throw new Error(res.error);
+    // Actualizar local
+    const epi = EPIS.find(e => e.id === epiId);
+    if (epi) epi.stock[sz] = Math.max(0, (epi.stock[sz] || 0) + qty);
+    LOG.unshift({ id: Date.now().toString(), ts: new Date().toISOString(), op: 'ajuste',
+      user: { nombre: 'Gestor', apellidos: '', dni: '—' },
+      items: [{ label: epiNombre + (sz !== '_' ? ' T.' + sz : ''), qty: Math.abs(qty) }], reason: why });
+    toast('Inventario actualizado', 'g');
+    renderDash(); renderInvTab();
+    document.getElementById('adj-qty').value = '';
+    document.getElementById('adj-why').value = '';
+  } catch(e) {
+    toast('Error al ajustar', 'r');
+  } finally {
+    hideLoader();
+  }
+}
+
+// ─── LOG ──────────────────────────────────────────
+function buildLogItem(entry) {
+  const cls  = entry.op === 'ajuste' ? 'adj' : entry.op === 'retirar' ? 'out' : 'in';
+  const icon = entry.op === 'ajuste' ? 'ti-adjustments-horizontal' :
+               entry.op === 'retirar' ? 'ti-arrow-up-right' : 'ti-arrow-down-left';
+  const dt   = new Date(entry.ts);
+  const dstr = dt.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' }) +
+               ' ' + dt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  const div  = document.createElement('div');
+  div.className = 'log-item';
+  div.innerHTML = `<div class="log-dot ${cls}"><i class="ti ${icon}"></i></div>
+    <div style="flex:1;min-width:0">
+      <div class="log-nm">${entry.user.nombre}${entry.user.apellidos ? ' ' + entry.user.apellidos : ''}</div>
+      <div class="log-dt">${entry.items.map(i => i.label + ' × ' + i.qty).join(', ')}${entry.reason ? ' · ' + entry.reason : ''}</div>
+      <div class="log-ts">${dstr}${entry.user.dni && entry.user.dni !== '—' ? ' · DNI: ' + entry.user.dni : ''}</div>
+    </div>`;
+  return div;
+}
+
+function renderLog() {
+  const q    = (document.getElementById('log-q').value || '').toLowerCase();
+  const list = document.getElementById('log-list');
+  list.innerHTML = '';
+  const filtered = LOG.filter(e => {
+    if (!q) return true;
+    const s = (e.user.nombre + ' ' + e.user.apellidos + ' ' + e.user.dni +
+               e.items.map(i => i.label).join(' ')).toLowerCase();
+    return s.includes(q);
+  });
+  if (!filtered.length) {
+    list.innerHTML = '<p style="font-size:13px;color:var(--n5);text-align:center;padding:14px 0">Sin resultados.</p>';
+    return;
+  }
+  filtered.slice(0, 100).forEach(e => list.appendChild(buildLogItem(e)));
+}
+
+function exportCSV() {
+  const rows = [['Fecha','Hora','Operación','Nombre','Apellidos','DNI','EPI','Cantidad','Motivo']];
+  LOG.forEach(e => {
+    const dt = new Date(e.ts);
+    e.items.forEach(i => {
+      rows.push([
+        dt.toLocaleDateString('es-ES'),
+        dt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+        e.op, e.user.nombre, e.user.apellidos || '', e.user.dni || '',
+        i.label, i.qty, e.reason || ''
+      ]);
+    });
+  });
+  const csv  = rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\r\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'EPIControl_' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click(); URL.revokeObjectURL(url);
+  toast('CSV exportado', 'g');
+}
+
+// ─── CATÁLOGO ─────────────────────────────────────
+async function doAddEPI() {
+  const nombre = document.getElementById('new-nm').value.trim();
+  const icono  = document.getElementById('new-ic').value.trim() || '📦';
+  const tallas = document.getElementById('new-sz').value;
+  const stock0 = parseInt(document.getElementById('new-st').value) || 0;
+  const min0   = parseInt(document.getElementById('new-mn').value) || 0;
+  if (!nombre) { toast('Escribe el nombre del EPI', 'a'); return; }
+  showLoader('Añadiendo EPI...');
+  try {
+    const res = await apiPost({ action: 'upsertEPI', nombre, icono, tallas, stockInicial: stock0, stockMinimo: min0 });
+    if (res.error) throw new Error(res.error);
+    // Añadir local
+    const sizes = tallas === 'shoe' ? SHOE : tallas === 'cloth' ? CLOTH : ['_'];
+    const stock = {}, minStock = {};
+    sizes.forEach(s => { stock[s] = stock0; minStock[s] = min0; });
+    EPIS.push({ id: res.id, nombre, icono, tallas, stock, minStock });
+    document.getElementById('new-nm').value = '';
+    document.getElementById('new-ic').value = '';
+    toast('EPI añadido', 'g');
+    renderCat(); renderDash(); renderInvTab();
+  } catch(e) {
+    toast('Error al añadir EPI', 'r');
+  } finally {
+    hideLoader();
+  }
+}
+
+async function doDeleteEPI(id) {
+  if (!confirm('¿Eliminar este EPI del catálogo?')) return;
+  showLoader('Eliminando...');
+  try {
+    const res = await apiPost({ action: 'deleteEPI', id });
+    if (res.error) throw new Error(res.error);
+    EPIS = EPIS.filter(e => e.id !== id);
+    toast('EPI eliminado', 'g');
+    renderCat(); renderDash(); renderInvTab();
+  } catch(e) {
+    toast('Error al eliminar', 'r');
+  } finally {
+    hideLoader();
+  }
+}
+
+function renderCat() {
+  const el = document.getElementById('cat-list');
+  el.innerHTML = '';
+  if (!EPIS.length) {
+    el.innerHTML = '<p style="font-size:13px;color:var(--n5);text-align:center;padding:12px 0">Catálogo vacío.</p>';
+    return;
+  }
+  EPIS.forEach(epi => {
+    const s   = stockStat(epi);
+    const div = document.createElement('div');
+    div.className = 'cat-item';
+    div.innerHTML = `<span style="font-size:22px">${epi.icono}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700">${epi.nombre}</div>
+        <div style="font-size:11px;color:var(--n5)">${
+          epi.tallas === 'none' ? 'Sin tallas' :
+          epi.tallas === 'shoe' ? 'Calzado (35–47)' : 'Ropa (XS–XXXL)'
+        } · Stock total: ${s.total}</div>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="doDeleteEPI('${epi.id}')">
+        <i class="ti ti-trash"></i>
+      </button>`;
+    el.appendChild(div);
+  });
+}
+
+// ─── CONFIG ───────────────────────────────────────
+function renderCfg() {
+  document.getElementById('cfg-emails').value = EMAILS.join('\n');
+}
+
+async function saveEmails() {
+  const val = document.getElementById('cfg-emails').value.split('\n').map(e => e.trim()).filter(Boolean);
+  showLoader('Guardando...');
+  try {
+    const res = await apiPost({ action: 'saveConfig', key: 'emails', value: val.join('\n') });
+    if (res.error) throw new Error(res.error);
+    EMAILS = val;
+    toast('Emails guardados', 'g');
+  } catch(e) {
+    toast('Error al guardar', 'r');
+  } finally {
+    hideLoader();
+  }
+}
+
+async function doChangePass() {
+  const np = document.getElementById('cfg-pw').value;
+  if (!np || np.length < 4) { toast('Mínimo 4 caracteres', 'a'); return; }
+  showLoader('Guardando...');
+  try {
+    const res = await apiPost({ action: 'saveConfig', key: 'pass', value: np });
+    if (res.error) throw new Error(res.error);
+    document.getElementById('cfg-pw').value = '';
+    toast('Contraseña cambiada', 'g');
+  } catch(e) {
+    toast('Error al cambiar', 'r');
+  } finally {
+    hideLoader();
+  }
+}
+
+// ─── TOAST ────────────────────────────────────────
+let tTimer = null;
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = (type === 'g' ? '✓  ' : type === 'a' ? '⚠  ' : '✕  ') + msg;
+  el.className   = 'show t' + (type || 'g');
+  if (tTimer) clearTimeout(tTimer);
+  tTimer = setTimeout(() => { el.className = ''; }, 2800);
+}
+
+// ─── Teclado ──────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.hasAttribute('tabindex')) e.target.click();
+});
+
+// ─── Init ─────────────────────────────────────────
+window.addEventListener('online',  () => setOffline(false));
+window.addEventListener('offline', () => setOffline(true));
+
+// Comprobar que la URL está configurada
+if (API_URL === 'PEGA_AQUI_TU_URL_DE_APPS_SCRIPT') {
+  document.getElementById('home-alert').innerHTML =
+    '<div class="alert alert-r"><i class="ti ti-settings"></i>' +
+    '<span><strong>Configuración pendiente:</strong> Abre el archivo index.html y pega la URL de tu Apps Script en la primera línea del código.</span></div>';
+} else {
+  loadAll(true);
+}
+</script>
+</body>
+</html>
