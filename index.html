@@ -9,6 +9,7 @@
 <title>EPI Control</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛑️</text></svg>">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:16px;-webkit-text-size-adjust:100%;height:100%}
@@ -166,9 +167,18 @@ select{
 .epi-card.sel{border-color:var(--g7);background:var(--g0)}
 .epi-card.zero{opacity:.45;pointer-events:none}
 .epi-em{font-size:26px;margin-bottom:5px;line-height:1}
+.epi-img{
+  width:100%;aspect-ratio:4/3;object-fit:cover;
+  border-radius:6px;margin-bottom:7px;background:var(--n1);display:block;
+}
+.epi-img-thumb{
+  width:44px;height:44px;object-fit:cover;
+  border-radius:8px;flex-shrink:0;background:var(--n1);
+}
 .epi-nm{font-size:13px;font-weight:700;color:var(--n9);line-height:1.3}
 .epi-sz{font-size:11px;color:var(--n5);margin-top:1px}
 .epi-chip{display:inline-flex;align-items:center;gap:3px;margin-top:6px;padding:2px 7px;border-radius:20px;font-size:11px;font-weight:700}
+.img-preview{width:72px;height:54px;object-fit:cover;border-radius:6px;border:1px solid var(--n3);margin-top:8px;display:none}
 
 /* ── Qty ── */
 .qty-row{
@@ -295,8 +305,70 @@ select{
   font-size:12px;font-weight:600;padding:6px;display:none;
 }
 
-@media(max-width:360px){
-  .g2,.act-grid,.epi-grid,.op-grid,.met-grid{grid-template-columns:1fr}
+/* ── Scanner ── */
+#scan-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:8000;
+  display:none;flex-direction:column;align-items:center;justify-content:center;gap:0;
+}
+#scan-overlay.open{display:flex}
+#scan-video{width:100%;max-width:480px;max-height:55vh;object-fit:cover;display:block}
+.scan-frame{
+  position:relative;width:100%;max-width:480px;
+}
+.scan-corners{
+  position:absolute;inset:0;pointer-events:none;
+}
+.scan-corners::before,.scan-corners::after{
+  content:'';position:absolute;width:40px;height:40px;border-color:var(--g6);border-style:solid;
+}
+.scan-corners::before{top:12px;left:12px;border-width:3px 0 0 3px;border-radius:4px 0 0 4px}
+.scan-corners::after{bottom:12px;right:12px;border-width:0 3px 3px 0;border-radius:0 0 4px 0}
+.scan-line{
+  position:absolute;left:12px;right:12px;height:2px;
+  background:linear-gradient(90deg,transparent,var(--g6),transparent);
+  animation:scanmove 2s ease-in-out infinite;top:12px;
+}
+@keyframes scanmove{0%,100%{top:12px}50%{bottom:12px;top:auto}}
+.scan-bar{
+  width:100%;max-width:480px;background:rgba(0,0,0,.7);
+  padding:16px;display:flex;flex-direction:column;gap:10px;
+}
+.scan-status{color:#fff;font-size:14px;font-weight:600;text-align:center;min-height:20px}
+.scan-hint{color:rgba(255,255,255,.6);font-size:12px;text-align:center}
+
+/* ── Modal talla ── */
+#modal-talla{
+  position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9000;
+  display:none;align-items:flex-end;justify-content:center;
+}
+#modal-talla.open{display:flex}
+.modal-sheet{
+  background:#fff;border-radius:20px 20px 0 0;padding:20px 16px 32px;
+  width:100%;max-width:480px;
+}
+.modal-title{font-size:15px;font-weight:800;margin-bottom:4px;color:var(--n9)}
+.modal-sub{font-size:13px;color:var(--n5);margin-bottom:16px}
+.talla-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.talla-btn{
+  padding:12px 6px;border:1.5px solid var(--n3);border-radius:var(--rad);
+  font-size:13px;font-weight:700;cursor:pointer;background:#fff;
+  text-align:center;transition:all .12s;
+}
+.talla-btn:hover{border-color:var(--g6);background:var(--g0);color:var(--g7)}
+.talla-btn.agotado{opacity:.35;pointer-events:none;text-decoration:line-through}
+
+/* ── Etiquetas QR (imprimibles) ── */
+.qr-label-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.qr-label-card{border:1px solid var(--n3);border-radius:var(--rad);padding:12px;text-align:center}
+.qr-label-card canvas{display:block;margin:0 auto 6px}
+.qr-label-nm{font-size:11px;font-weight:700;color:var(--n9);line-height:1.3}
+.qr-label-sz{font-size:10px;color:var(--n5)}
+
+@media print{
+  body > *:not(#print-area){display:none!important}
+  #print-area{display:block!important}
+  .qr-label-grid{grid-template-columns:repeat(3,1fr);gap:6mm}
+  .qr-label-card{border:1px solid #ccc;page-break-inside:avoid}
 }
 </style>
 </head>
@@ -311,6 +383,35 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbxaE9Xj9e7QOWHyR-0iK_XH
 </script>
 
 <div id="offline-bar">📡 Sin conexión — comprueba tu red</div>
+
+<!-- ══ SCANNER OVERLAY ══ -->
+<div id="scan-overlay">
+  <div class="scan-frame">
+    <video id="scan-video" autoplay playsinline muted></video>
+    <div class="scan-corners"></div>
+    <div class="scan-line"></div>
+  </div>
+  <div class="scan-bar">
+    <div class="scan-status" id="scan-status">Apunta al código QR o de barras del EPI</div>
+    <div class="scan-hint" id="scan-hint">Mantén el código dentro del recuadro</div>
+    <button class="btn btn-secondary btn-sm" onclick="stopScanner()" style="background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3)">
+      <i class="ti ti-x"></i> Cancelar
+    </button>
+  </div>
+</div>
+
+<!-- ══ MODAL TALLA ══ -->
+<div id="modal-talla">
+  <div class="modal-sheet">
+    <div class="modal-title" id="mt-title">Selecciona la talla</div>
+    <div class="modal-sub" id="mt-sub"></div>
+    <div class="talla-grid" id="mt-grid"></div>
+    <button class="btn btn-ghost btn-full" style="margin-top:12px" onclick="closeTallaModal()">Cancelar</button>
+  </div>
+</div>
+
+<!-- ══ PRINT AREA (oculto en pantalla) ══ -->
+<div id="print-area" style="display:none"></div>
 
 <div class="app">
 
@@ -409,7 +510,12 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbxaE9Xj9e7QOWHyR-0iK_XH
     </div>
   </div>
   <div class="card" style="padding-bottom:12px">
-    <input type="search" id="epi-q" placeholder="🔍  Buscar EPI..." oninput="renderGrid()" style="margin-bottom:12px">
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <input type="search" id="epi-q" placeholder="🔍  Buscar EPI..." oninput="renderGrid()" style="flex:1">
+      <button class="btn btn-secondary btn-sm" onclick="startScanner('employee')" style="flex-shrink:0;gap:5px">
+        <i class="ti ti-scan" style="font-size:16px"></i> Escanear
+      </button>
+    </div>
     <div class="scroll-l"><div class="epi-grid" id="epi-grid"></div></div>
   </div>
   <div id="qty-sec" style="display:none">
@@ -484,6 +590,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbxaE9Xj9e7QOWHyR-0iK_XH
     <div class="tab-btn" onclick="switchTab('t-inv')">Inventario</div>
     <div class="tab-btn" onclick="switchTab('t-log')">Historial</div>
     <div class="tab-btn" onclick="switchTab('t-cat')">Catálogo</div>
+    <div class="tab-btn" onclick="switchTab('t-qr')">Etiquetas QR</div>
     <div class="tab-btn" onclick="switchTab('t-cfg')">Ajustes</div>
   </div>
 
@@ -503,6 +610,11 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbxaE9Xj9e7QOWHyR-0iK_XH
 
   <!-- Inventario -->
   <div id="t-inv" class="tab-pane">
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-secondary btn-sm btn-full" onclick="startScanner('manager')" style="gap:6px">
+        <i class="ti ti-scan" style="font-size:16px"></i> Escanear EPI para ajuste rápido
+      </button>
+    </div>
     <div class="card">
       <div class="card-title">Ajuste de stock</div>
       <div class="fg" style="margin-bottom:10px">
@@ -519,7 +631,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbxaE9Xj9e7QOWHyR-0iK_XH
       <div class="card-title">Tabla de inventario</div>
       <div class="inv-wrap">
         <table class="inv-table">
-          <thead><tr><th>EPI</th><th>Stock</th><th>Mín.</th><th>Estado</th></tr></thead>
+          <thead><tr><th>EPI</th><th>SAP</th><th>Stock</th><th>Mín.</th><th>Estado</th></tr></thead>
           <tbody id="inv-body"></tbody>
         </table>
       </div>
@@ -540,8 +652,13 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbxaE9Xj9e7QOWHyR-0iK_XH
     <div class="card">
       <div class="card-title">Añadir nuevo EPI</div>
       <div class="fg" style="margin-bottom:10px"><label>Nombre</label><input type="text" id="new-nm" placeholder="ej: Gafas antipolvo"></div>
+      <div class="fg" style="margin-bottom:6px">
+        <label>Imagen o emoji</label>
+        <input type="text" id="new-ic" placeholder="🦺  ó  https://drive.google.com/..." oninput="previewIcon()">
+        <p class="hint" style="margin-top:4px">Pega un emoji <strong>o</strong> una URL de imagen de Google Drive</p>
+        <img id="new-ic-preview" class="img-preview" alt="Vista previa">
+      </div>
       <div class="g2" style="margin-bottom:10px">
-        <div class="fg"><label>Emoji</label><input type="text" id="new-ic" placeholder="🦺" maxlength="4"></div>
         <div class="fg">
           <label>Tipo de tallas</label>
           <select id="new-sz">
@@ -549,6 +666,10 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbxaE9Xj9e7QOWHyR-0iK_XH
             <option value="shoe">Calzado (35–47)</option>
             <option value="cloth">Ropa (XS–XXXL)</option>
           </select>
+        </div>
+        <div class="fg">
+          <label>Código SAP</label>
+          <input type="text" id="new-sap" placeholder="ej: MAT-00423">
         </div>
       </div>
       <div class="g2" style="margin-bottom:14px">
@@ -560,6 +681,31 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbxaE9Xj9e7QOWHyR-0iK_XH
     <div class="card">
       <div class="card-title">EPIs en catálogo</div>
       <div id="cat-list"></div>
+    </div>
+  </div>
+
+  <!-- Etiquetas QR -->
+  <div id="t-qr" class="tab-pane">
+    <div class="alert alert-g">
+      <i class="ti ti-info-circle"></i>
+      <span>Genera las etiquetas QR de tus EPIs e imprímelas. Pégalas junto a cada EPI en el almacén para que los empleados puedan escanearlas.</span>
+    </div>
+    <div class="card">
+      <div class="card-title">Selecciona EPIs a imprimir</div>
+      <div class="fg" style="margin-bottom:10px">
+        <label>EPI</label>
+        <select id="qr-epi-sel" onchange="renderQRPreview()">
+          <option value="all">— Todos los EPIs —</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary btn-sm" onclick="printQRLabels()"><i class="ti ti-printer"></i> Imprimir etiquetas</button>
+        <button class="btn btn-secondary btn-sm" onclick="renderQRPreview()"><i class="ti ti-refresh"></i> Actualizar vista</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Vista previa</div>
+      <div class="qr-label-grid" id="qr-preview"></div>
     </div>
   </div>
 
@@ -766,6 +912,39 @@ function continueIdentify() {
   goto('page-select');
 }
 
+// ─── Helper: determina si el icono es URL de imagen ──────────
+function isUrl(s) { return s && (s.startsWith('http://') || s.startsWith('https://')); }
+
+// Convierte URL de Google Drive al formato directo embebible
+function driveUrl(url) {
+  // Formato compartir: https://drive.google.com/file/d/ID/view?...
+  const m = url.match(/\/d\/([^/]+)/);
+  if (m) return 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w400';
+  // Formato thumbnail directo: ya está bien
+  if (url.includes('drive.google.com/thumbnail')) return url;
+  return url;
+}
+
+function iconHtml(icono, cls) {
+  if (isUrl(icono)) {
+    return `<img src="${driveUrl(icono)}" class="${cls}" alt="EPI" loading="lazy" onerror="this.style.display='none'">`;
+  }
+  return cls === 'epi-img'
+    ? `<span class="epi-em" style="font-size:32px;margin-bottom:8px;display:block">${icono || '📦'}</span>`
+    : `<span style="font-size:${cls === 'epi-img-thumb' ? '22' : '20'}px">${icono || '📦'}</span>`;
+}
+
+function previewIcon() {
+  const val = document.getElementById('new-ic').value.trim();
+  const prev = document.getElementById('new-ic-preview');
+  if (isUrl(val)) {
+    prev.src = driveUrl(val);
+    prev.style.display = 'block';
+  } else {
+    prev.style.display = 'none';
+  }
+}
+
 // ─── SELECT ───────────────────────────────────────
 function renderGrid() {
   const grid = document.getElementById('epi-grid');
@@ -785,8 +964,8 @@ function renderGrid() {
       const chipCls = st === 0 ? 'br' : st <= ((epi.minStock && epi.minStock[sz]) || 0) ? 'ba' : 'bg';
       const card = document.createElement('div');
       card.className = 'epi-card' + (sel ? ' sel' : '') + (zero ? ' zero' : '');
-      card.innerHTML = `<span class="epi-em">${epi.icono}</span>
-        <div class="epi-nm">${epi.nombre}</div>
+      card.innerHTML = iconHtml(epi.icono, 'epi-img') +
+        `<div class="epi-nm">${epi.nombre}</div>
         ${sz !== '_' ? `<div class="epi-sz">Talla ${sz}</div>` : ''}
         <span class="epi-chip badge ${chipCls}">Stock: ${st}</span>`;
       card.onclick = () => toggleSel(key, label, st, epi);
@@ -957,18 +1136,19 @@ function renderManager() {
   renderLog();
   renderCat();
   renderCfg();
+  populateQRSelect();
 }
 
 function switchTab(id) {
   document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('act'));
   document.getElementById(id).classList.add('active');
-  const tabs = ['t-dash','t-inv','t-log','t-cat','t-cfg'];
+  const tabs = ['t-dash','t-inv','t-log','t-cat','t-qr','t-cfg'];
   document.querySelectorAll('.tab-btn')[tabs.indexOf(id)].classList.add('act');
   if (id === 't-inv') renderInvTab();
   if (id === 't-log') renderLog();
   if (id === 't-cat') renderCat();
-  if (id === 't-cfg') renderCfg();
+  if (id === 't-qr')  { populateQRSelect(); renderQRPreview(); }
 }
 
 function renderDash() {
@@ -997,8 +1177,8 @@ function renderDash() {
     const bt = s.pct < 50 ? 'Crítico' : s.pct < 80 ? 'Bajo' : 'OK';
     const row = document.createElement('div');
     row.className = 'st-row';
-    row.innerHTML = `<span class="st-em">${epi.icono}</span>
-      <div class="st-info">
+    row.innerHTML = iconHtml(epi.icono, 'epi-img-thumb') +
+      `<div class="st-info">
         <div class="st-nm">${epi.nombre}</div>
         <div class="st-sub">Total: ${s.total} · Mínimo: ${s.minT}</div>
         <div class="st-bar-w"><div class="st-bar" style="width:${s.pct}%;background:${c}"></div></div>
@@ -1039,7 +1219,8 @@ function renderInvTab() {
       const mn = (epi.minStock && epi.minStock[sz]) || 0;
       const ok = st >= mn;
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td style="font-weight:600">${epi.icono} ${epi.nombre}${sz !== '_' ? ' T.' + sz : ''}</td>
+      tr.innerHTML = `<td style="font-weight:600">${epi.icono && epi.icono.length<=4?epi.icono+' ':''}${epi.nombre}${sz !== '_' ? ' T.' + sz : ''}</td>
+        <td style="font-size:12px;color:var(--n5);font-family:monospace">${epi.codigoSAP || '—'}</td>
         <td style="font-weight:800;color:${ok?'var(--n9)':'var(--r7)'}">${st}</td>
         <td style="color:var(--n5)">${mn}</td>
         <td><span class="badge ${ok?'bg':'br'}">${ok?'OK':'Bajo'}</span></td>`;
@@ -1136,23 +1317,24 @@ function exportCSV() {
 
 // ─── CATÁLOGO ─────────────────────────────────────
 async function doAddEPI() {
-  const nombre = document.getElementById('new-nm').value.trim();
-  const icono  = document.getElementById('new-ic').value.trim() || '📦';
-  const tallas = document.getElementById('new-sz').value;
-  const stock0 = parseInt(document.getElementById('new-st').value) || 0;
-  const min0   = parseInt(document.getElementById('new-mn').value) || 0;
+  const nombre    = document.getElementById('new-nm').value.trim();
+  const icono     = document.getElementById('new-ic').value.trim() || '📦';
+  const tallas    = document.getElementById('new-sz').value;
+  const codigoSAP = document.getElementById('new-sap').value.trim();
+  const stock0    = parseInt(document.getElementById('new-st').value) || 0;
+  const min0      = parseInt(document.getElementById('new-mn').value) || 0;
   if (!nombre) { toast('Escribe el nombre del EPI', 'a'); return; }
   showLoader('Añadiendo EPI...');
   try {
-    const res = await apiPost({ action: 'upsertEPI', nombre, icono, tallas, stockInicial: stock0, stockMinimo: min0 });
+    const res = await apiPost({ action: 'upsertEPI', nombre, icono, tallas, codigoSAP, stockInicial: stock0, stockMinimo: min0 });
     if (res.error) throw new Error(res.error);
-    // Añadir local
     const sizes = tallas === 'shoe' ? SHOE : tallas === 'cloth' ? CLOTH : ['_'];
     const stock = {}, minStock = {};
     sizes.forEach(s => { stock[s] = stock0; minStock[s] = min0; });
-    EPIS.push({ id: res.id, nombre, icono, tallas, stock, minStock });
-    document.getElementById('new-nm').value = '';
-    document.getElementById('new-ic').value = '';
+    EPIS.push({ id: res.id, nombre, icono, tallas, codigoSAP, stock, minStock });
+    document.getElementById('new-nm').value  = '';
+    document.getElementById('new-ic').value  = '';
+    document.getElementById('new-sap').value = '';
     toast('EPI añadido', 'g');
     renderCat(); renderDash(); renderInvTab();
   } catch(e) {
@@ -1189,13 +1371,14 @@ function renderCat() {
     const s   = stockStat(epi);
     const div = document.createElement('div');
     div.className = 'cat-item';
-    div.innerHTML = `<span style="font-size:22px">${epi.icono}</span>
-      <div style="flex:1;min-width:0">
+    div.innerHTML = iconHtml(epi.icono, 'epi-img-thumb') +
+      `<div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:700">${epi.nombre}</div>
         <div style="font-size:11px;color:var(--n5)">${
           epi.tallas === 'none' ? 'Sin tallas' :
           epi.tallas === 'shoe' ? 'Calzado (35–47)' : 'Ropa (XS–XXXL)'
         } · Stock total: ${s.total}</div>
+        ${epi.codigoSAP ? `<div style="font-size:11px;font-family:monospace;color:var(--b7);margin-top:2px">SAP: ${epi.codigoSAP}</div>` : ''}
       </div>
       <button class="btn btn-danger btn-sm" onclick="doDeleteEPI('${epi.id}')">
         <i class="ti ti-trash"></i>
@@ -1250,8 +1433,250 @@ function toast(msg, type) {
   tTimer = setTimeout(() => { el.className = ''; }, 2800);
 }
 
+// ═══════════════════════════════════════════════════
+//  ESCÁNER DE CÓDIGOS QR Y DE BARRAS
+// ═══════════════════════════════════════════════════
+let scannerActive = false;
+let scannerMode   = 'employee';
+let scanStream    = null;
+let scanRAF       = null;
+
+async function startScanner(mode) {
+  scannerMode = mode;
+  document.getElementById('scan-overlay').classList.add('open');
+  document.getElementById('scan-status').textContent = 'Iniciando cámara...';
+  document.getElementById('scan-hint').textContent   = 'Apunta al código QR o de barras del EPI';
+  scannerActive = true;
+  try {
+    scanStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    const video = document.getElementById('scan-video');
+    video.srcObject = scanStream;
+    await video.play();
+    document.getElementById('scan-status').textContent = 'Apunta al código del EPI';
+    readLoop();
+  } catch(err) {
+    stopScanner();
+    toast(err.name === 'NotAllowedError'
+      ? 'Permiso de cámara denegado. Actívalo en los ajustes del navegador.'
+      : 'No se pudo iniciar la cámara: ' + err.message, 'r');
+  }
+}
+
+function readLoop() {
+  if (!scannerActive) return;
+  const video = document.getElementById('scan-video');
+  if (!video.videoWidth) { scanRAF = requestAnimationFrame(readLoop); return; }
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  try {
+    const hints = new Map([[ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+      ZXing.BarcodeFormat.QR_CODE, ZXing.BarcodeFormat.CODE_128,
+      ZXing.BarcodeFormat.CODE_39, ZXing.BarcodeFormat.EAN_13,
+      ZXing.BarcodeFormat.EAN_8,  ZXing.BarcodeFormat.DATA_MATRIX,
+    ]]]);
+    const reader = new ZXing.BrowserMultiFormatReader(hints);
+    const result = reader.decodeFromCanvas(canvas);
+    if (result) { onCodeDetected(result.getText()); return; }
+  } catch(e) {}
+  scanRAF = requestAnimationFrame(readLoop);
+}
+
+function onCodeDetected(code) {
+  if (navigator.vibrate) navigator.vibrate(80);
+  const epi = EPIS.find(e => e.id === code);
+  if (!epi) {
+    document.getElementById('scan-status').textContent = '⚠ Código no reconocido';
+    document.getElementById('scan-hint').textContent   = 'Usa los QR generados por esta app (pestaña Etiquetas QR)';
+    setTimeout(() => {
+      if (scannerActive) {
+        document.getElementById('scan-status').textContent = 'Apunta al código del EPI';
+        document.getElementById('scan-hint').textContent   = 'Mantén el código dentro del recuadro';
+        readLoop();
+      }
+    }, 2200);
+    return;
+  }
+  stopScanner();
+  if (scannerMode === 'employee') handleScannedEmployee(epi);
+  else                            handleScannedManager(epi);
+}
+
+function stopScanner() {
+  scannerActive = false;
+  if (scanRAF) { cancelAnimationFrame(scanRAF); scanRAF = null; }
+  if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+  document.getElementById('scan-overlay').classList.remove('open');
+}
+
+// ─── Escaneado empleado ──────────────────────────
+function handleScannedEmployee(epi) {
+  if (epi.tallas === 'none') {
+    addToSession(epi, '_');
+  } else {
+    showTallaModal(epi, 'employee');
+  }
+}
+
+function addToSession(epi, sz) {
+  const key   = epi.id + '|' + sz;
+  const stock = epi.stock[sz] || 0;
+  const label = epi.nombre + (sz !== '_' ? ' T.' + sz : '');
+  if (!SESSION.sel.includes(key)) {
+    SESSION.sel.push(key);
+    SESSION.qtys[key] = { label, qty: 1, stock, epiId: epi.id, epiNombre: epi.nombre, talla: sz };
+  } else {
+    const maxQ = SESSION.op === 'retirar' ? stock : 999;
+    SESSION.qtys[key].qty = Math.min(SESSION.qtys[key].qty + 1, maxQ);
+  }
+  toast('✓ ' + label + ' añadido', 'g');
+  renderGrid();
+}
+
+// ─── Escaneado gestor ────────────────────────────
+function handleScannedManager(epi) {
+  if (epi.tallas === 'none') {
+    preselectAdj(epi.id, '_', epi.nombre);
+  } else {
+    showTallaModal(epi, 'manager');
+  }
+}
+
+function preselectAdj(epiId, sz, nombre) {
+  switchTab('t-inv');
+  const sel = document.getElementById('adj-sel');
+  for (let i = 0; i < sel.options.length; i++) {
+    if (sel.options[i].value.startsWith(epiId + '|' + sz)) {
+      sel.selectedIndex = i; break;
+    }
+  }
+  toast('EPI seleccionado: ' + nombre + (sz !== '_' ? ' T.' + sz : ''), 'g');
+  setTimeout(() => document.getElementById('adj-qty').focus(), 200);
+}
+
+// ═══════════════════════════════════════════════════
+//  MODAL DE SELECCIÓN DE TALLA
+// ═══════════════════════════════════════════════════
+let mtEpi = null, mtMode = 'employee';
+
+function showTallaModal(epi, mode) {
+  mtEpi = epi; mtMode = mode;
+  const sizes = epi.tallas === 'shoe' ? SHOE : CLOTH;
+  document.getElementById('mt-title').textContent =
+    (epi.icono && epi.icono.length <= 4 ? epi.icono + '  ' : '') + epi.nombre;
+  document.getElementById('mt-sub').textContent = mode === 'employee'
+    ? 'Selecciona tu talla para ' + (SESSION.op === 'retirar' ? 'retirar' : 'devolver')
+    : 'Selecciona la talla para el ajuste de inventario';
+  const grid = document.getElementById('mt-grid');
+  grid.innerHTML = '';
+  sizes.forEach(sz => {
+    const stock   = epi.stock[sz] || 0;
+    const agotado = mode === 'employee' && SESSION.op === 'retirar' && stock === 0;
+    const btn = document.createElement('button');
+    btn.className = 'talla-btn' + (agotado ? ' agotado' : '');
+    btn.innerHTML = `<div>${sz}</div><div style="font-size:10px;color:var(--n5);margin-top:2px">${agotado ? 'Agotado' : 'Stock: ' + stock}</div>`;
+    btn.onclick = () => onTallaOk(sz);
+    grid.appendChild(btn);
+  });
+  document.getElementById('modal-talla').classList.add('open');
+}
+
+function closeTallaModal() {
+  document.getElementById('modal-talla').classList.remove('open');
+  mtEpi = null;
+}
+
+function onTallaOk(sz) {
+  closeTallaModal();
+  if (!mtEpi) return;
+  if (mtMode === 'employee') addToSession(mtEpi, sz);
+  else                       preselectAdj(mtEpi.id, sz, mtEpi.nombre);
+}
+
+// ═══════════════════════════════════════════════════
+//  ETIQUETAS QR — generación e impresión
+// ═══════════════════════════════════════════════════
+function drawQR(canvas, text, size) {
+  try {
+    const writer = new ZXing.BrowserQRCodeSvgWriter();
+    const svgEl  = writer.write(text, size, size);
+    const xml    = new XMLSerializer().serializeToString(svgEl);
+    const img    = new Image();
+    img.onload = () => {
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, size, size);
+      ctx.drawImage(img, 0, 0, size, size);
+    };
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(xml)));
+  } catch(e) {
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#f0f0f0'; ctx.fillRect(0, 0, size, size);
+    ctx.fillStyle = '#666'; ctx.font = '9px monospace';
+    ctx.fillText('ID: ' + text.slice(0, 12), 4, size / 2);
+  }
+}
+
+function buildQRCard(epi) {
+  const card   = document.createElement('div');
+  card.className = 'qr-label-card';
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 140;
+  drawQR(canvas, epi.id, 140);
+  const nm = document.createElement('div');
+  nm.className = 'qr-label-nm';
+  nm.textContent = (epi.icono && epi.icono.length <= 4 ? epi.icono + ' ' : '') + epi.nombre;
+  const sz = document.createElement('div');
+  sz.className = 'qr-label-sz';
+  sz.textContent = epi.tallas === 'shoe' ? 'Calzado 35–47'
+                 : epi.tallas === 'cloth' ? 'Ropa XS–XXXL' : '';
+  card.appendChild(canvas);
+  card.appendChild(nm);
+  if (sz.textContent) card.appendChild(sz);
+  return card;
+}
+
+function renderQRPreview() {
+  const selVal  = document.getElementById('qr-epi-sel').value;
+  const preview = document.getElementById('qr-preview');
+  preview.innerHTML = '';
+  const list = selVal === 'all' ? EPIS : EPIS.filter(e => e.id === selVal);
+  if (!list.length) {
+    preview.innerHTML = '<p style="font-size:13px;color:var(--n5);padding:12px 0">No hay EPIs en el catálogo.</p>';
+    return;
+  }
+  list.forEach(epi => preview.appendChild(buildQRCard(epi)));
+}
+
+function populateQRSelect() {
+  const sel = document.getElementById('qr-epi-sel');
+  while (sel.options.length > 1) sel.remove(1);
+  EPIS.forEach(epi => {
+    const opt = document.createElement('option');
+    opt.value = epi.id; opt.textContent = epi.nombre;
+    sel.appendChild(opt);
+  });
+}
+
+function printQRLabels() {
+  const selVal = document.getElementById('qr-epi-sel').value;
+  const list   = selVal === 'all' ? EPIS : EPIS.filter(e => e.id === selVal);
+  if (!list.length) { toast('No hay EPIs para imprimir', 'a'); return; }
+  const printArea = document.getElementById('print-area');
+  // Copiar el HTML del preview al área de impresión
+  printArea.innerHTML = '<div class="qr-label-grid">' + document.getElementById('qr-preview').innerHTML + '</div>';
+  printArea.style.display = 'block';
+  setTimeout(() => {
+    window.print();
+    setTimeout(() => { printArea.style.display = 'none'; }, 1200);
+  }, 400);
+}
+
 // ─── Teclado ──────────────────────────────────────
 document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { stopScanner(); closeTallaModal(); }
   if (e.key === 'Enter' && e.target.hasAttribute('tabindex')) e.target.click();
 });
 
