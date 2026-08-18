@@ -381,7 +381,7 @@ select{
      ╚══════════════════════════════╝ -->
 <script>
 // ← PEGA AQUÍ LA URL DE TU APPS SCRIPT (ver README paso 3)
-const API_URL = 'PEGA_AQUI_TU_URL_DE_APPS_SCRIPT';
+const API_URL = 'https://script.google.com/macros/s/AKfycbz52djcHxE5rwPy8QrzehVfpPUHp_WbdHaXf2pi4Bgqi4XH8B4bcmHlMMNCpTSxZvdo/exec';
 </script>
 
 <div id="offline-bar">📡 Sin conexión — comprueba tu red</div>
@@ -1745,7 +1745,7 @@ window.addEventListener('online',  () => setOffline(false));
 window.addEventListener('offline', () => setOffline(true));
 
 // Comprobar que la URL está configurada
-if (API_URL === 'https://script.google.com/macros/s/AKfycbz52djcHxE5rwPy8QrzehVfpPUHp_WbdHaXf2pi4Bgqi4XH8B4bcmHlMMNCpTSxZvdo/exec') {
+if (API_URL === 'PEGA_AQUI_TU_URL_DE_APPS_SCRIPT') {
   document.getElementById('home-alert').innerHTML =
     '<div class="alert alert-r"><i class="ti ti-settings"></i>' +
     '<span><strong>Configuración pendiente:</strong> Abre el archivo index.html y pega la URL de tu Apps Script en la primera línea del código.</span></div>';
