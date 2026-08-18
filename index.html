@@ -1694,23 +1694,25 @@ function printQRLabels() {
   printArea.innerHTML = '<div class="qr-label-grid"></div>';
   const grid = printArea.querySelector('.qr-label-grid');
 
-  // Se genera un QR de alta resolución específico para imprimir, independiente
-  // del canvas mostrado en pantalla, para que la calidad de impresión sea buena
-  // sin depender de ningún reescalado del navegador.
+  // IMPORTANTE: la imagen se muestra siempre a su resolución real (mismo
+  // tamaño en canvas.width que en CSS width/height). Nunca se reescala
+  // dentro del navegador — eso es lo que causaba el difuminado tanto en
+  // pantalla como al imprimir. Usamos un tamaño físico mayor (220) para
+  // que la etiqueta impresa salga con un buen tamaño de módulo.
   list.forEach(epi => {
     const hiRes = document.createElement('canvas');
-    drawQR(hiRes, epi.id, 140, 12); // 12 px por módulo → alta resolución para imprimir
+    const realSize = drawQR(hiRes, epi.id, 220); // escala automática, SIN forzar
 
     const card = document.createElement('div');
     card.className = 'qr-label-card';
 
     const img = document.createElement('img');
     img.src = hiRes.toDataURL('image/png');
-    img.style.width  = '140px';
-    img.style.height = '140px';
+    // El tamaño mostrado es EXACTAMENTE el tamaño real del canvas: cero reescalado.
+    img.style.width  = realSize + 'px';
+    img.style.height = realSize + 'px';
     img.style.display = 'block';
     img.style.margin  = '0 auto 6px';
-    img.style.imageRendering = 'pixelated';
     card.appendChild(img);
 
     const nm = document.createElement('div');
