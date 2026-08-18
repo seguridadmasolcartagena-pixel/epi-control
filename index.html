@@ -1599,25 +1599,30 @@ function onTallaOk(sz) {
 // ═══════════════════════════════════════════════════
 //  ETIQUETAS QR — generación e impresión
 // ═══════════════════════════════════════════════════
-function drawQR(canvas, text, size) {
+function drawQR(canvas, text, targetSize, forcedScale) {
   try {
-    // Genera la matriz del QR (versión automática, corrección de errores media)
     const qr = qrcode(0, 'M');
     qr.addData(String(text));
     qr.make();
     const moduleCount = qr.getModuleCount();
-    const quietZone   = 4;  // zona de silencio estándar (imprescindible para que escaneen)
+    const quietZone   = 4; // zona de silencio estándar (imprescindible para que escaneen)
     const totalMod    = moduleCount + quietZone * 2;
-    const scale       = 10; // píxeles reales por módulo → alta resolución para imprimir nítido
-    const pixelSize   = totalMod * scale;
 
-    // Resolución real del canvas alta; tamaño visual en pantalla el solicitado
+    // Escala entera de píxeles por módulo. Sin escala forzada, se elige la máxima
+    // que quepa en targetSize SIN pasarse, para que el canvas se muestre 1:1 con su
+    // resolución real y el navegador nunca tenga que reescalarlo (eso es lo que
+    // causaba el difuminado: reescalar borra la nitidez de los módulos).
+    const scale     = forcedScale || Math.max(1, Math.floor(targetSize / totalMod));
+    const pixelSize = totalMod * scale;
+
     canvas.width  = pixelSize;
     canvas.height = pixelSize;
-    canvas.style.width  = size + 'px';
-    canvas.style.height = size + 'px';
+    // Mostrado exactamente a su resolución real: cero reescalado = cero difuminado.
+    canvas.style.width  = pixelSize + 'px';
+    canvas.style.height = pixelSize + 'px';
 
     const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, pixelSize, pixelSize);
     ctx.fillStyle = '#000000';
@@ -1628,12 +1633,15 @@ function drawQR(canvas, text, size) {
         }
       }
     }
+    return pixelSize;
   } catch(e) {
-    canvas.width = canvas.height = size;
+    canvas.width = canvas.height = targetSize;
+    canvas.style.width = canvas.style.height = targetSize + 'px';
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#f0f0f0'; ctx.fillRect(0, 0, size, size);
+    ctx.fillStyle = '#f0f0f0'; ctx.fillRect(0, 0, targetSize, targetSize);
     ctx.fillStyle = '#666'; ctx.font = '9px monospace';
-    ctx.fillText('ID: ' + String(text).slice(0, 12), 4, size / 2);
+    ctx.fillText('ID: ' + String(text).slice(0, 12), 4, targetSize / 2);
+    return targetSize;
   }
 }
 
@@ -1641,7 +1649,6 @@ function buildQRCard(epi) {
   const card   = document.createElement('div');
   card.className = 'qr-label-card';
   const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 140;
   drawQR(canvas, epi.id, 140);
   const nm = document.createElement('div');
   nm.className = 'qr-label-nm';
@@ -1687,23 +1694,37 @@ function printQRLabels() {
   printArea.innerHTML = '<div class="qr-label-grid"></div>';
   const grid = printArea.querySelector('.qr-label-grid');
 
-  // Un <canvas> clonado vía innerHTML pierde el dibujo (solo copia el elemento vacío).
-  // Por eso reconstruimos cada tarjeta convirtiendo el canvas a imagen PNG real.
-  document.querySelectorAll('#qr-preview .qr-label-card').forEach(card => {
-    const canvas = card.querySelector('canvas');
-    const clone  = card.cloneNode(true);
-    if (canvas) {
-      const img = document.createElement('img');
-      img.src = canvas.toDataURL('image/png');
-      img.style.width  = (canvas.style.width  || canvas.width  + 'px');
-      img.style.height = (canvas.style.height || canvas.height + 'px');
-      img.style.display = 'block';
-      img.style.margin  = '0 auto 6px';
-      img.style.imageRendering = 'pixelated';
-      const cloneCanvas = clone.querySelector('canvas');
-      clone.replaceChild(img, cloneCanvas);
-    }
-    grid.appendChild(clone);
+  // Se genera un QR de alta resolución específico para imprimir, independiente
+  // del canvas mostrado en pantalla, para que la calidad de impresión sea buena
+  // sin depender de ningún reescalado del navegador.
+  list.forEach(epi => {
+    const hiRes = document.createElement('canvas');
+    drawQR(hiRes, epi.id, 140, 12); // 12 px por módulo → alta resolución para imprimir
+
+    const card = document.createElement('div');
+    card.className = 'qr-label-card';
+
+    const img = document.createElement('img');
+    img.src = hiRes.toDataURL('image/png');
+    img.style.width  = '140px';
+    img.style.height = '140px';
+    img.style.display = 'block';
+    img.style.margin  = '0 auto 6px';
+    img.style.imageRendering = 'pixelated';
+    card.appendChild(img);
+
+    const nm = document.createElement('div');
+    nm.className = 'qr-label-nm';
+    nm.textContent = (epi.icono && epi.icono.length <= 4 ? epi.icono + ' ' : '') + epi.nombre;
+    card.appendChild(nm);
+
+    const sz = document.createElement('div');
+    sz.className = 'qr-label-sz';
+    sz.textContent = epi.tallas === 'shoe' ? 'Calzado 35–47'
+                   : epi.tallas === 'cloth' ? 'Ropa XS–XXXL' : '';
+    if (sz.textContent) card.appendChild(sz);
+
+    grid.appendChild(card);
   });
 
   printArea.style.display = 'block';
