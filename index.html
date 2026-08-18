@@ -361,7 +361,8 @@ select{
 /* ── Etiquetas QR (imprimibles) ── */
 .qr-label-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .qr-label-card{border:1px solid var(--n3);border-radius:var(--rad);padding:12px;text-align:center}
-.qr-label-card canvas{display:block;margin:0 auto 6px}
+.qr-label-card canvas{display:block;margin:0 auto 6px;image-rendering:-moz-crisp-edges;image-rendering:pixelated}
+.qr-label-card img{display:block;margin:0 auto 6px;image-rendering:-moz-crisp-edges;image-rendering:pixelated}
 .qr-label-nm{font-size:11px;font-weight:700;color:var(--n9);line-height:1.3}
 .qr-label-sz{font-size:10px;color:var(--n5)}
 
@@ -380,7 +381,7 @@ select{
      ╚══════════════════════════════╝ -->
 <script>
 // ← PEGA AQUÍ LA URL DE TU APPS SCRIPT (ver README paso 3)
-const API_URL = 'https://script.google.com/macros/s/AKfycbz52djcHxE5rwPy8QrzehVfpPUHp_WbdHaXf2pi4Bgqi4XH8B4bcmHlMMNCpTSxZvdo/exec';
+const API_URL = 'PEGA_AQUI_TU_URL_DE_APPS_SCRIPT';
 </script>
 
 <div id="offline-bar">📡 Sin conexión — comprueba tu red</div>
@@ -1698,6 +1699,7 @@ function printQRLabels() {
       img.style.height = (canvas.style.height || canvas.height + 'px');
       img.style.display = 'block';
       img.style.margin  = '0 auto 6px';
+      img.style.imageRendering = 'pixelated';
       const cloneCanvas = clone.querySelector('canvas');
       clone.replaceChild(img, cloneCanvas);
     }
@@ -1722,7 +1724,7 @@ window.addEventListener('online',  () => setOffline(false));
 window.addEventListener('offline', () => setOffline(true));
 
 // Comprobar que la URL está configurada
-if (API_URL === 'PEGA_AQUI_TU_URL_DE_APPS_SCRIPT') {
+if (API_URL === 'https://script.google.com/macros/s/AKfycbz52djcHxE5rwPy8QrzehVfpPUHp_WbdHaXf2pi4Bgqi4XH8B4bcmHlMMNCpTSxZvdo/exec') {
   document.getElementById('home-alert').innerHTML =
     '<div class="alert alert-r"><i class="ti ti-settings"></i>' +
     '<span><strong>Configuración pendiente:</strong> Abre el archivo index.html y pega la URL de tu Apps Script en la primera línea del código.</span></div>';
