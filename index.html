@@ -10,6 +10,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛑️</text></svg>">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css">
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:16px;-webkit-text-size-adjust:100%;height:100%}
@@ -379,7 +380,7 @@ select{
      ╚══════════════════════════════╝ -->
 <script>
 // ← PEGA AQUÍ LA URL DE TU APPS SCRIPT (ver README paso 3)
-const API_URL = 'https://script.google.com/macros/s/AKfycbxaE9Xj9e7QOWHyR-0iK_XHyPv758H-fliSk60Bz9e-e7G3-UnAKTsN6wsdBL8SfUEq/exec';
+const API_URL = 'PEGA_AQUI_TU_URL_DE_APPS_SCRIPT';
 </script>
 
 <div id="offline-bar">📡 Sin conexión — comprueba tu red</div>
@@ -580,7 +581,6 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbxaE9Xj9e7QOWHyR-0iK_XH
     </div>
     <button class="btn btn-primary btn-full" onclick="doLogin()">Entrar</button>
   </div>
-  <p style="text-align:center;font-size:12px;color:var(--n5)">Contraseña por defecto: <code style="background:var(--n1);padding:2px 6px;border-radius:4px;font-size:12px">admin123</code></p>
 </div>
 
 <!-- ═════ MANAGER ═════ -->
@@ -1600,22 +1600,39 @@ function onTallaOk(sz) {
 // ═══════════════════════════════════════════════════
 function drawQR(canvas, text, size) {
   try {
-    const writer = new ZXing.BrowserQRCodeSvgWriter();
-    const svgEl  = writer.write(text, size, size);
-    const xml    = new XMLSerializer().serializeToString(svgEl);
-    const img    = new Image();
-    img.onload = () => {
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, size, size);
-      ctx.drawImage(img, 0, 0, size, size);
-    };
-    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(xml)));
+    // Genera la matriz del QR (versión automática, corrección de errores media)
+    const qr = qrcode(0, 'M');
+    qr.addData(String(text));
+    qr.make();
+    const moduleCount = qr.getModuleCount();
+    const quietZone   = 4;  // zona de silencio estándar (imprescindible para que escaneen)
+    const totalMod    = moduleCount + quietZone * 2;
+    const scale       = 10; // píxeles reales por módulo → alta resolución para imprimir nítido
+    const pixelSize   = totalMod * scale;
+
+    // Resolución real del canvas alta; tamaño visual en pantalla el solicitado
+    canvas.width  = pixelSize;
+    canvas.height = pixelSize;
+    canvas.style.width  = size + 'px';
+    canvas.style.height = size + 'px';
+
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, pixelSize, pixelSize);
+    ctx.fillStyle = '#000000';
+    for (let row = 0; row < moduleCount; row++) {
+      for (let col = 0; col < moduleCount; col++) {
+        if (qr.isDark(row, col)) {
+          ctx.fillRect((col + quietZone) * scale, (row + quietZone) * scale, scale, scale);
+        }
+      }
+    }
   } catch(e) {
+    canvas.width = canvas.height = size;
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = '#f0f0f0'; ctx.fillRect(0, 0, size, size);
     ctx.fillStyle = '#666'; ctx.font = '9px monospace';
-    ctx.fillText('ID: ' + text.slice(0, 12), 4, size / 2);
+    ctx.fillText('ID: ' + String(text).slice(0, 12), 4, size / 2);
   }
 }
 
@@ -1664,14 +1681,34 @@ function printQRLabels() {
   const selVal = document.getElementById('qr-epi-sel').value;
   const list   = selVal === 'all' ? EPIS : EPIS.filter(e => e.id === selVal);
   if (!list.length) { toast('No hay EPIs para imprimir', 'a'); return; }
+
   const printArea = document.getElementById('print-area');
-  // Copiar el HTML del preview al área de impresión
-  printArea.innerHTML = '<div class="qr-label-grid">' + document.getElementById('qr-preview').innerHTML + '</div>';
+  printArea.innerHTML = '<div class="qr-label-grid"></div>';
+  const grid = printArea.querySelector('.qr-label-grid');
+
+  // Un <canvas> clonado vía innerHTML pierde el dibujo (solo copia el elemento vacío).
+  // Por eso reconstruimos cada tarjeta convirtiendo el canvas a imagen PNG real.
+  document.querySelectorAll('#qr-preview .qr-label-card').forEach(card => {
+    const canvas = card.querySelector('canvas');
+    const clone  = card.cloneNode(true);
+    if (canvas) {
+      const img = document.createElement('img');
+      img.src = canvas.toDataURL('image/png');
+      img.style.width  = (canvas.style.width  || canvas.width  + 'px');
+      img.style.height = (canvas.style.height || canvas.height + 'px');
+      img.style.display = 'block';
+      img.style.margin  = '0 auto 6px';
+      const cloneCanvas = clone.querySelector('canvas');
+      clone.replaceChild(img, cloneCanvas);
+    }
+    grid.appendChild(clone);
+  });
+
   printArea.style.display = 'block';
   setTimeout(() => {
     window.print();
     setTimeout(() => { printArea.style.display = 'none'; }, 1200);
-  }, 400);
+  }, 300);
 }
 
 // ─── Teclado ──────────────────────────────────────
