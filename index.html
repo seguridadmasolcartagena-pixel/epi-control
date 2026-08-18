@@ -1440,7 +1440,7 @@ function toast(msg, type) {
 let scannerActive = false;
 let scannerMode   = 'employee';
 let scanStream    = null;
-let scanRAF       = null;
+let codeReader    = null;
 
 async function startScanner(mode) {
   scannerMode = mode;
@@ -1456,7 +1456,21 @@ async function startScanner(mode) {
     video.srcObject = scanStream;
     await video.play();
     document.getElementById('scan-status').textContent = 'Apunta al código del EPI';
-    readLoop();
+
+    // IMPORTANTE: decodeFromCanvas NO existe en esta librería (causaba que el
+    // escáner nunca detectara nada). El método correcto decodifica directamente
+    // desde el elemento <video>, usando el bucle de lectura interno de ZXing.
+    const hints = new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+      ZXing.BarcodeFormat.QR_CODE, ZXing.BarcodeFormat.CODE_128,
+      ZXing.BarcodeFormat.CODE_39, ZXing.BarcodeFormat.EAN_13,
+      ZXing.BarcodeFormat.EAN_8,  ZXing.BarcodeFormat.DATA_MATRIX,
+    ]);
+    codeReader = new ZXing.BrowserMultiFormatReader(hints);
+    codeReader.decodeFromVideoElementContinuously(video, (result, err) => {
+      if (result) onCodeDetected(result.getText());
+      // Si no hay resultado en este fotograma, ZXing sigue intentándolo solo.
+    });
   } catch(err) {
     stopScanner();
     toast(err.name === 'NotAllowedError'
@@ -1465,27 +1479,8 @@ async function startScanner(mode) {
   }
 }
 
-function readLoop() {
-  if (!scannerActive) return;
-  const video = document.getElementById('scan-video');
-  if (!video.videoWidth) { scanRAF = requestAnimationFrame(readLoop); return; }
-  const canvas = document.createElement('canvas');
-  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-  canvas.getContext('2d').drawImage(video, 0, 0);
-  try {
-    const hints = new Map([[ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-      ZXing.BarcodeFormat.QR_CODE, ZXing.BarcodeFormat.CODE_128,
-      ZXing.BarcodeFormat.CODE_39, ZXing.BarcodeFormat.EAN_13,
-      ZXing.BarcodeFormat.EAN_8,  ZXing.BarcodeFormat.DATA_MATRIX,
-    ]]]);
-    const reader = new ZXing.BrowserMultiFormatReader(hints);
-    const result = reader.decodeFromCanvas(canvas);
-    if (result) { onCodeDetected(result.getText()); return; }
-  } catch(e) {}
-  scanRAF = requestAnimationFrame(readLoop);
-}
-
 function onCodeDetected(code) {
+  if (!scannerActive) return; // evita procesar detecciones tras cerrar el escáner
   if (navigator.vibrate) navigator.vibrate(80);
   const epi = EPIS.find(e => e.id === code);
   if (!epi) {
@@ -1495,7 +1490,6 @@ function onCodeDetected(code) {
       if (scannerActive) {
         document.getElementById('scan-status').textContent = 'Apunta al código del EPI';
         document.getElementById('scan-hint').textContent   = 'Mantén el código dentro del recuadro';
-        readLoop();
       }
     }, 2200);
     return;
@@ -1507,7 +1501,7 @@ function onCodeDetected(code) {
 
 function stopScanner() {
   scannerActive = false;
-  if (scanRAF) { cancelAnimationFrame(scanRAF); scanRAF = null; }
+  if (codeReader) { try { codeReader.reset(); } catch(e) {} codeReader = null; }
   if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
   document.getElementById('scan-overlay').classList.remove('open');
 }
