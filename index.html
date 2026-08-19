@@ -389,7 +389,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbz52djcHxE5rwPy8QrzehVf
 <!-- ══ SCANNER OVERLAY ══ -->
 <div id="scan-overlay">
   <div class="scan-frame">
-    <video id="scan-video" autoplay playsinline muted></video>
+    <video id="scan-video" playsinline muted></video>
     <div class="scan-corners"></div>
     <div class="scan-line"></div>
   </div>
@@ -1454,12 +1454,17 @@ async function startScanner(mode) {
     });
     const video = document.getElementById('scan-video');
     video.srcObject = scanStream;
-    await video.play();
+    // IMPORTANTE: NO llamar aquí a video.play(). ZXing espera internamente
+    // al evento 'playing' del vídeo para arrancar su bucle de lectura; si el
+    // vídeo ya está reproduciéndose cuando ZXing lo revisa, ese evento no
+    // vuelve a dispararse y el escáner se queda activo pero sin leer nunca
+    // nada (justo el síntoma: se ve la cámara, pero no detecta el código).
+    // Dejamos que sea ZXing quien inicie la reproducción.
     document.getElementById('scan-status').textContent = 'Apunta al código del EPI';
 
-    // IMPORTANTE: decodeFromCanvas NO existe en esta librería (causaba que el
-    // escáner nunca detectara nada). El método correcto decodifica directamente
-    // desde el elemento <video>, usando el bucle de lectura interno de ZXing.
+    // decodeFromCanvas NO existe en esta librería (por eso el escáner nunca
+    // detectaba nada antes). El método correcto decodifica directamente
+    // desde el elemento <video>, con el bucle de lectura interno de ZXing.
     const hints = new Map();
     hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
       ZXing.BarcodeFormat.QR_CODE, ZXing.BarcodeFormat.CODE_128,
@@ -1467,7 +1472,7 @@ async function startScanner(mode) {
       ZXing.BarcodeFormat.EAN_8,  ZXing.BarcodeFormat.DATA_MATRIX,
     ]);
     codeReader = new ZXing.BrowserMultiFormatReader(hints);
-    codeReader.decodeFromVideoElementContinuously(video, (result, err) => {
+    await codeReader.decodeFromVideoElementContinuously(video, (result, err) => {
       if (result) onCodeDetected(result.getText());
       // Si no hay resultado en este fotograma, ZXing sigue intentándolo solo.
     });
