@@ -57,6 +57,7 @@ body{
   font-family:inherit;text-decoration:none;line-height:1;
 }
 .btn:active{transform:scale(.96)}
+.btn:disabled{opacity:.45;pointer-events:none}
 .btn-primary{background:var(--g7);color:#fff;border-color:var(--g7)}
 .btn-primary:hover{background:var(--g8)}
 .btn-secondary{background:#fff;color:var(--n7);border-color:var(--n3)}
@@ -100,6 +101,25 @@ select{
 .alert-g{background:var(--g0);color:var(--g7)}
 .alert-a{background:var(--a0);color:var(--a7)}
 .alert-r{background:var(--r0);color:var(--r7)}
+
+/* ── Consentimiento EPI (obligatorio al retirar) ── */
+.consent-box{
+  background:var(--n0);border:1px solid var(--n3);border-radius:var(--rad);
+  padding:12px 14px;max-height:200px;overflow-y:auto;
+  font-size:12px;line-height:1.6;color:var(--n7);margin-bottom:10px;
+}
+.consent-box p{margin-bottom:8px}
+.consent-box ul{margin:0 0 4px 18px;padding:0}
+.consent-box li{margin-bottom:4px}
+.consent-row{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:10px 12px;background:var(--a0);border:1px solid #f0d49a;
+  border-radius:var(--rad);cursor:pointer;
+}
+.consent-row input[type=checkbox]{
+  width:19px;height:19px;flex-shrink:0;margin-top:1px;accent-color:var(--g7);cursor:pointer;
+}
+.consent-row span{font-size:13px;font-weight:600;color:var(--n9);line-height:1.4}
 
 /* ── Hero home ── */
 .hero{
@@ -396,9 +416,14 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbz52djcHxE5rwPy8QrzehVf
   <div class="scan-bar">
     <div class="scan-status" id="scan-status">Apunta al código QR o de barras del EPI</div>
     <div class="scan-hint" id="scan-hint">Mantén el código dentro del recuadro</div>
-    <button class="btn btn-secondary btn-sm" onclick="stopScanner()" style="background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3)">
-      <i class="ti ti-x"></i> Cancelar
-    </button>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-secondary btn-sm" onclick="stopScanner()" style="flex:1;background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3)">
+        <i class="ti ti-x"></i> Cancelar
+      </button>
+      <button class="btn btn-primary btn-sm" id="scan-done-btn" onclick="stopScanner()" style="flex:1;display:none">
+        <i class="ti ti-check"></i> Listo
+      </button>
+    </div>
   </div>
 </div>
 
@@ -547,11 +572,29 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbz52djcHxE5rwPy8QrzehVf
     </div>
   </div>
   <div class="card"><div id="confirm-body"></div></div>
+
+  <div id="consent-section" style="display:none">
+    <div class="consent-box">
+      <p><strong>Según lo establecido en el art. 17 de la Ley de Prevención de Riesgos Laborales</strong>, la empresa entrega al trabajador firmante los equipos de protección individual, para su uso individual en las actividades que desempeña en su puesto de trabajo.</p>
+      <p>Para su correcto uso y mantenimiento, el trabajador ha recibido la información y formación necesarias y, por su parte, y en cumplimiento de lo establecido en el art. 29 de la mencionada Ley y en el R.D. 773/1997 sobre Equipos de Protección Individual, se compromete a:</p>
+      <ul>
+        <li>Utilizar y mantener los equipos adecuadamente.</li>
+        <li>Utilizar estos equipos durante la realización de las tareas encomendadas, o en áreas en cuya obligatoriedad de uso se encuentre señalizada.</li>
+        <li>Consultar cualquier duda sobre su correcta utilización, cuidando de su perfecto estado y conservación.</li>
+        <li>Solicitar un nuevo equipo en caso de pérdida o deterioro.</li>
+      </ul>
+    </div>
+    <label class="consent-row">
+      <input type="checkbox" id="consent-check" onchange="updateConfirmBtn()">
+      <span>He leído y acepto el compromiso de uso indicado arriba</span>
+    </label>
+  </div>
+
   <div class="alert alert-a">
     <i class="ti ti-info-circle"></i>
     <span>Al confirmar, aceptas la responsabilidad sobre los EPIs indicados. Tu nombre y DNI quedan registrados.</span>
   </div>
-  <button class="btn btn-primary btn-full" onclick="doConfirm()">
+  <button class="btn btn-primary btn-full" id="confirm-btn" onclick="doConfirm()">
     <i class="ti ti-check"></i> Confirmar y registrar
   </button>
 </div>
@@ -1043,10 +1086,25 @@ function renderConfirm() {
     html += `<div class="cf-line"><span class="cf-k">${q.label}</span><span class="cf-v">× ${q.qty}</span></div>`;
   });
   document.getElementById('confirm-body').innerHTML = html;
+
+  // La casilla de compromiso de uso solo se exige al retirar, no al devolver.
+  document.getElementById('consent-section').style.display = op === 'retirar' ? '' : 'none';
+  document.getElementById('consent-check').checked = false;
+  updateConfirmBtn();
+}
+
+function updateConfirmBtn() {
+  const needsConsent = SESSION.op === 'retirar';
+  const checked = document.getElementById('consent-check').checked;
+  document.getElementById('confirm-btn').disabled = needsConsent && !checked;
 }
 
 async function doConfirm() {
   if (!SESSION.sel.length) return;
+  if (SESSION.op === 'retirar' && !document.getElementById('consent-check').checked) {
+    toast('Debes aceptar el compromiso de uso para retirar EPIs', 'a');
+    return;
+  }
   showLoader('Registrando...');
   try {
     const items = SESSION.sel.map(key => {
@@ -1441,9 +1499,15 @@ let scannerActive = false;
 let scannerMode   = 'employee';
 let scanStream    = null;
 let codeReader    = null;
+let scanBusy      = false; // true durante el cooldown tras un escaneo, o con el modal de talla abierto
+let scanCount     = 0;     // EPIs añadidos en esta sesión de escaneo (modo empleado)
 
 async function startScanner(mode) {
   scannerMode = mode;
+  scanBusy  = false;
+  scanCount = 0;
+  document.getElementById('scan-done-btn').style.display = mode === 'employee' ? '' : 'none';
+  document.getElementById('scan-done-btn').innerHTML = '<i class="ti ti-check"></i> Listo';
   document.getElementById('scan-overlay').classList.add('open');
   document.getElementById('scan-status').textContent = 'Iniciando cámara...';
   document.getElementById('scan-hint').textContent   = 'Apunta al código QR o de barras del EPI';
@@ -1485,39 +1549,81 @@ async function startScanner(mode) {
 }
 
 function onCodeDetected(code) {
-  if (!scannerActive) return; // evita procesar detecciones tras cerrar el escáner
+  if (!scannerActive || scanBusy) return;
   if (navigator.vibrate) navigator.vibrate(80);
   const epi = EPIS.find(e => e.id === code);
   if (!epi) {
     document.getElementById('scan-status').textContent = '⚠ Código no reconocido';
     document.getElementById('scan-hint').textContent   = 'Usa los QR generados por esta app (pestaña Etiquetas QR)';
+    scanBusy = true;
     setTimeout(() => {
+      scanBusy = false;
       if (scannerActive) {
         document.getElementById('scan-status').textContent = 'Apunta al código del EPI';
         document.getElementById('scan-hint').textContent   = 'Mantén el código dentro del recuadro';
       }
-    }, 2200);
+    }, 1800);
     return;
   }
-  stopScanner();
-  if (scannerMode === 'employee') handleScannedEmployee(epi);
-  else                            handleScannedManager(epi);
+
+  // Modo gestor: selección única, se cierra la cámara tras el primer código.
+  if (scannerMode === 'manager') {
+    stopScanner();
+    handleScannedManager(epi);
+    return;
+  }
+
+  // Modo empleado: la cámara NO se cierra, para poder seguir escaneando
+  // varios EPIs distintos seguidos, uno tras otro.
+  if (epi.tallas === 'none') {
+    addToSession(epi, '_');
+    flashScanFeedback(epi.nombre + ' añadido');
+  } else {
+    pauseScannerForModal();
+    showTallaModal(epi, 'employee');
+  }
+}
+
+// Pequeña confirmación visual sin cerrar la cámara: el empleado puede
+// seguir escaneando el siguiente EPI inmediatamente.
+function flashScanFeedback(msg) {
+  scanBusy = true;
+  scanCount++;
+  document.getElementById('scan-status').textContent = '✓ ' + msg;
+  document.getElementById('scan-hint').textContent    = 'Sigue escaneando, o pulsa "Listo" para terminar';
+  document.getElementById('scan-done-btn').innerHTML  = `<i class="ti ti-check"></i> Listo (${scanCount})`;
+  setTimeout(() => {
+    scanBusy = false;
+    if (scannerActive) {
+      document.getElementById('scan-status').textContent = 'Apunta al código del EPI';
+      document.getElementById('scan-hint').textContent   = 'Mantén el código dentro del recuadro';
+    }
+  }, 1200);
+}
+
+// La cámara sigue activa de fondo mientras se elige la talla; solo se
+// oculta visualmente para no tapar el modal.
+function pauseScannerForModal() {
+  scanBusy = true;
+  document.getElementById('scan-overlay').classList.remove('open');
+}
+
+function resumeScannerAfterModal() {
+  if (!scannerActive || scannerMode !== 'employee') return;
+  scanCount++;
+  document.getElementById('scan-done-btn').innerHTML = `<i class="ti ti-check"></i> Listo (${scanCount})`;
+  scanBusy = false;
+  document.getElementById('scan-overlay').classList.add('open');
+  document.getElementById('scan-status').textContent = 'Apunta al código del EPI';
+  document.getElementById('scan-hint').textContent   = 'Mantén el código dentro del recuadro';
 }
 
 function stopScanner() {
   scannerActive = false;
+  scanBusy = false;
   if (codeReader) { try { codeReader.reset(); } catch(e) {} codeReader = null; }
   if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
   document.getElementById('scan-overlay').classList.remove('open');
-}
-
-// ─── Escaneado empleado ──────────────────────────
-function handleScannedEmployee(epi) {
-  if (epi.tallas === 'none') {
-    addToSession(epi, '_');
-  } else {
-    showTallaModal(epi, 'employee');
-  }
 }
 
 function addToSession(epi, sz) {
@@ -1531,7 +1637,6 @@ function addToSession(epi, sz) {
     const maxQ = SESSION.op === 'retirar' ? stock : 999;
     SESSION.qtys[key].qty = Math.min(SESSION.qtys[key].qty + 1, maxQ);
   }
-  toast('✓ ' + label + ' añadido', 'g');
   renderGrid();
 }
 
@@ -1586,13 +1691,15 @@ function showTallaModal(epi, mode) {
 function closeTallaModal() {
   document.getElementById('modal-talla').classList.remove('open');
   mtEpi = null;
+  resumeScannerAfterModal();
 }
 
 function onTallaOk(sz) {
+  const epi = mtEpi, mode = mtMode;
   closeTallaModal();
-  if (!mtEpi) return;
-  if (mtMode === 'employee') addToSession(mtEpi, sz);
-  else                       preselectAdj(mtEpi.id, sz, mtEpi.nombre);
+  if (!epi) return;
+  if (mode === 'employee') addToSession(epi, sz);
+  else                     preselectAdj(epi.id, sz, epi.nombre);
 }
 
 // ═══════════════════════════════════════════════════
