@@ -705,7 +705,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbz52djcHxE5rwPy8QrzehVf
       <div class="g2" style="margin-bottom:10px">
         <div class="fg">
           <label>Tipo de tallas</label>
-          <select id="new-sz">
+          <select id="new-sz" onchange="toggleNewEpiSizeInputs()">
             <option value="none">Sin tallas</option>
             <option value="shoe">Calzado (35–47)</option>
             <option value="cloth">Ropa (XS–XXXL)</option>
@@ -716,10 +716,23 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbz52djcHxE5rwPy8QrzehVf
           <input type="text" id="new-sap" placeholder="ej: MAT-00423">
         </div>
       </div>
-      <div class="g2" style="margin-bottom:14px">
+
+      <div class="g2" id="new-simple-stock" style="margin-bottom:14px">
         <div class="fg"><label>Stock inicial</label><input type="number" id="new-st" value="0" min="0"></div>
         <div class="fg"><label>Stock mínimo</label><input type="number" id="new-mn" value="5" min="0"></div>
       </div>
+
+      <div id="new-sized-stock" style="display:none;margin-bottom:14px">
+        <label style="font-size:13px;font-weight:700;color:var(--n7);display:block;margin-bottom:6px">Stock por talla</label>
+        <p class="hint" style="margin-bottom:8px">Indica cuántas unidades hay de <strong>cada talla</strong> — no se reparte automáticamente.</p>
+        <div style="display:grid;grid-template-columns:44px 1fr 1fr;gap:8px;margin-bottom:4px">
+          <span></span>
+          <span style="font-size:11px;font-weight:700;color:var(--n5)">Stock</span>
+          <span style="font-size:11px;font-weight:700;color:var(--n5)">Mínimo</span>
+        </div>
+        <div id="new-sized-rows" style="display:flex;flex-direction:column;gap:6px"></div>
+      </div>
+
       <button class="btn btn-primary btn-sm" onclick="doAddEPI()"><i class="ti ti-plus"></i> Añadir EPI</button>
     </div>
     <div class="card">
@@ -1375,25 +1388,75 @@ function exportCSV() {
 }
 
 // ─── CATÁLOGO ─────────────────────────────────────
+
+// Muestra los campos simples (sin tallas) o la rejilla por talla, según
+// el tipo elegido. Antes, el mismo "Stock inicial" se replicaba igual
+// para TODAS las tallas (10 unidades = 10 de cada talla); ahora se
+// indica el stock real de cada talla por separado.
+function toggleNewEpiSizeInputs() {
+  const tallas = document.getElementById('new-sz').value;
+  const simple = document.getElementById('new-simple-stock');
+  const sized  = document.getElementById('new-sized-stock');
+  if (tallas === 'none') {
+    simple.style.display = '';
+    sized.style.display  = 'none';
+  } else {
+    simple.style.display = 'none';
+    sized.style.display  = '';
+    renderNewEpiSizeRows(tallas);
+  }
+}
+
+function renderNewEpiSizeRows(tallas) {
+  const sizes = tallas === 'shoe' ? SHOE : CLOTH;
+  const cont  = document.getElementById('new-sized-rows');
+  cont.innerHTML = '';
+  sizes.forEach(sz => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:grid;grid-template-columns:44px 1fr 1fr;gap:8px;align-items:center';
+    row.innerHTML = `
+      <span style="font-size:13px;font-weight:700;color:var(--n7)">${sz}</span>
+      <input type="number" class="new-sz-stock" data-sz="${sz}" value="0" min="0">
+      <input type="number" class="new-sz-min" data-sz="${sz}" value="0" min="0">
+    `;
+    cont.appendChild(row);
+  });
+}
+
 async function doAddEPI() {
   const nombre    = document.getElementById('new-nm').value.trim();
   const icono     = document.getElementById('new-ic').value.trim() || '📦';
   const tallas    = document.getElementById('new-sz').value;
   const codigoSAP = document.getElementById('new-sap').value.trim();
-  const stock0    = parseInt(document.getElementById('new-st').value) || 0;
-  const min0      = parseInt(document.getElementById('new-mn').value) || 0;
   if (!nombre) { toast('Escribe el nombre del EPI', 'a'); return; }
+
+  const stock = {}, minStock = {};
+  if (tallas === 'none') {
+    stock['_']    = parseInt(document.getElementById('new-st').value) || 0;
+    minStock['_'] = parseInt(document.getElementById('new-mn').value) || 0;
+  } else {
+    document.querySelectorAll('#new-sized-rows .new-sz-stock').forEach(inp => {
+      stock[inp.dataset.sz] = parseInt(inp.value) || 0;
+    });
+    document.querySelectorAll('#new-sized-rows .new-sz-min').forEach(inp => {
+      minStock[inp.dataset.sz] = parseInt(inp.value) || 0;
+    });
+  }
+
   showLoader('Añadiendo EPI...');
   try {
-    const res = await apiPost({ action: 'upsertEPI', nombre, icono, tallas, codigoSAP, stockInicial: stock0, stockMinimo: min0 });
+    const res = await apiPost({ action: 'upsertEPI', nombre, icono, tallas, codigoSAP, stock, minStock });
     if (res.error) throw new Error(res.error);
-    const sizes = tallas === 'shoe' ? SHOE : tallas === 'cloth' ? CLOTH : ['_'];
-    const stock = {}, minStock = {};
-    sizes.forEach(s => { stock[s] = stock0; minStock[s] = min0; });
     EPIS.push({ id: res.id, nombre, icono, tallas, codigoSAP, stock, minStock });
     document.getElementById('new-nm').value  = '';
     document.getElementById('new-ic').value  = '';
     document.getElementById('new-sap').value = '';
+    if (tallas === 'none') {
+      document.getElementById('new-st').value = 0;
+      document.getElementById('new-mn').value = 5;
+    } else {
+      renderNewEpiSizeRows(tallas); // deja la rejilla lista a cero para el siguiente EPI
+    }
     toast('EPI añadido', 'g');
     renderCat(); renderDash(); renderInvTab();
   } catch(e) {
