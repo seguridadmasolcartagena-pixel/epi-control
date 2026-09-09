@@ -694,7 +694,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbz52djcHxE5rwPy8QrzehVf
   <!-- Catálogo -->
   <div id="t-cat" class="tab-pane">
     <div class="card">
-      <div class="card-title">Añadir nuevo EPI</div>
+      <div class="card-title" id="cat-form-title">Añadir nuevo EPI</div>
       <div class="fg" style="margin-bottom:10px"><label>Nombre</label><input type="text" id="new-nm" placeholder="ej: Gafas antipolvo"></div>
       <div class="fg" style="margin-bottom:6px">
         <label>Imagen o emoji</label>
@@ -702,19 +702,28 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbz52djcHxE5rwPy8QrzehVf
         <p class="hint" style="margin-top:4px">Pega un emoji <strong>o</strong> una URL de imagen de Google Drive</p>
         <img id="new-ic-preview" class="img-preview" alt="Vista previa">
       </div>
-      <div class="g2" style="margin-bottom:10px">
-        <div class="fg">
-          <label>Tipo de tallas</label>
-          <select id="new-sz" onchange="toggleNewEpiSizeInputs()">
-            <option value="none">Sin tallas</option>
-            <option value="shoe">Calzado (35–47)</option>
-            <option value="cloth">Ropa (XS–XXXL)</option>
-          </select>
+      <div class="fg" style="margin-bottom:10px">
+        <label>Código SAP</label>
+        <input type="text" id="new-sap" placeholder="ej: MAT-00423">
+      </div>
+
+      <div class="fg" style="margin-bottom:10px">
+        <label>¿Tiene tallas?</label>
+        <select id="new-sz" onchange="toggleNewEpiSizeInputs()">
+          <option value="none">No — un único stock</option>
+          <option value="custom">Sí — indicar tallas</option>
+        </select>
+      </div>
+
+      <div id="new-sizes-picker" style="display:none;margin-bottom:10px">
+        <label style="font-size:13px;font-weight:700;color:var(--n7);display:block;margin-bottom:6px">Tallas de este EPI</label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="fillSizesPreset('shoe')">Calzado 35–47</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="fillSizesPreset('cloth')">Ropa XS–XXXL</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="fillSizesPreset('hand')">Números 7–10</button>
         </div>
-        <div class="fg">
-          <label>Código SAP</label>
-          <input type="text" id="new-sap" placeholder="ej: MAT-00423">
-        </div>
+        <input type="text" id="new-sizes-text" placeholder="ej: 37,38,39,40,41,42,43,44,45" oninput="onSizesTextChange()">
+        <p class="hint" style="margin-top:4px">Sepáralas por comas, exactamente las que necesites — no se añade ninguna talla de más.</p>
       </div>
 
       <div class="g2" id="new-simple-stock" style="margin-bottom:14px">
@@ -733,7 +742,10 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbz52djcHxE5rwPy8QrzehVf
         <div id="new-sized-rows" style="display:flex;flex-direction:column;gap:6px"></div>
       </div>
 
-      <button class="btn btn-primary btn-sm" onclick="doAddEPI()"><i class="ti ti-plus"></i> Añadir EPI</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary btn-sm" id="cat-submit-btn" onclick="doSaveEPI()"><i class="ti ti-plus"></i> Añadir EPI</button>
+        <button class="btn btn-ghost btn-sm" id="cat-cancel-edit" onclick="cancelEditEpi()" style="display:none">Cancelar edición</button>
+      </div>
     </div>
     <div class="card">
       <div class="card-title">EPIs en catálogo</div>
@@ -804,8 +816,48 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbz52djcHxE5rwPy8QrzehVf
 <!-- ═══════════════════════════════════════════ JS ══ -->
 <script>
 // ─── Tallas ───────────────────────────────────────
-const SHOE  = ['35','36','37','38','39','40','41','42','43','44','45','46','47'];
-const CLOTH = ['XS','S','M','L','XL','XXL','XXXL'];
+// Presets rápidos para rellenar el campo de tallas al crear/editar un EPI.
+// Ya NO determinan qué tallas se muestran: eso se calcula siempre a partir
+// de las tallas reales que tenga cada EPI (ver sizesOf), así que cualquier
+// EPI puede tener su propio rango (una bota hasta la 49, otra solo hasta
+// la 45, un buzo en M-XXL, guantes en números, etc.) sin tocar el código.
+const PRESET_SHOE  = ['35','36','37','38','39','40','41','42','43','44','45','46','47'];
+const PRESET_CLOTH = ['XS','S','M','L','XL','XXL','XXXL'];
+const PRESET_HAND  = ['7','8','9','10'];
+
+// Orden natural de tallas de letra, para ordenar bien en pantalla.
+const LETTER_ORDER = ['XXS','XS','S','M','L','XL','XXL','XXXL','XXXXL'];
+
+function isNoSizeToken(sz) {
+  return sz === '_' || sz === '-' || sz === '' || sz == null;
+}
+
+function compareTallas(a, b) {
+  const na = Number(a), nb = Number(b);
+  const aNum = a !== '' && !isNaN(na), bNum = b !== '' && !isNaN(nb);
+  if (aNum && bNum) return na - nb;                 // ambas numéricas → orden numérico
+  const ia = LETTER_ORDER.indexOf(a), ib = LETTER_ORDER.indexOf(b);
+  if (ia !== -1 && ib !== -1) return ia - ib;        // ambas letras conocidas → orden de talla
+  if (ia !== -1) return -1;
+  if (ib !== -1) return 1;
+  return String(a).localeCompare(String(b));         // cualquier otro caso → alfabético
+}
+
+// Las tallas visibles de un EPI se derivan SIEMPRE de sus datos reales
+// (las claves de epi.stock), nunca de una lista fija por categoría. Así,
+// da igual qué texto tenga epi.tallas ('shoe','cloth','body','hand',
+// 'head'...): cada EPI muestra exactamente sus propias tallas.
+function sizesOf(epi) {
+  if (epi.tallas === 'none') return ['_'];
+  const keys = Object.keys(epi.stock || {}).filter(k => !isNoSizeToken(k));
+  if (!keys.length) return ['_'];
+  return keys.sort(compareTallas);
+}
+
+function hasRealSizes(epi) {
+  const s = sizesOf(epi);
+  return !(s.length === 1 && isNoSizeToken(s[0]));
+}
 
 // ─── Estado en memoria ────────────────────────────
 let EPIS = [];
@@ -813,6 +865,7 @@ let LOG  = [];
 let EMAILS = [];
 let SESSION = { user: null, op: null, sel: [], qtys: {} };
 let currentOp = null;
+let editingEpiId = null; // null = formulario en modo "añadir"; si no, "editar"
 
 // ─── Cache ────────────────────────────────────────
 let lastLoad = 0;
@@ -1009,9 +1062,8 @@ function renderGrid() {
   const q = (document.getElementById('epi-q').value || '').toLowerCase();
 
   EPIS.forEach(epi => {
-    const sizes = epi.tallas === 'shoe' ? SHOE : epi.tallas === 'cloth' ? CLOTH : ['_'];
-    sizes.forEach(sz => {
-      const label = epi.nombre + (sz !== '_' ? ' T.' + sz : '');
+    sizesOf(epi).forEach(sz => {
+      const label = epi.nombre + (!isNoSizeToken(sz) ? ' T.' + sz : '');
       if (q && !label.toLowerCase().includes(q)) return;
       const key = epi.id + '|' + sz;
       const st  = epi.stock[sz] || 0;
@@ -1023,7 +1075,7 @@ function renderGrid() {
       card.className = 'epi-card' + (sel ? ' sel' : '') + (zero ? ' zero' : '');
       card.innerHTML = iconHtml(epi.icono, 'epi-img') +
         `<div class="epi-nm">${epi.nombre}</div>
-        ${sz !== '_' ? `<div class="epi-sz">Talla ${sz}</div>` : ''}
+        ${!isNoSizeToken(sz) ? `<div class="epi-sz">Talla ${sz}</div>` : ''}
         <span class="epi-chip badge ${chipCls}">Stock: ${st}</span>`;
       card.onclick = () => toggleSel(key, label, st, epi);
       grid.appendChild(card);
@@ -1273,11 +1325,10 @@ function renderInvTab() {
   const sel = document.getElementById('adj-sel');
   sel.innerHTML = '';
   EPIS.forEach(epi => {
-    const sizes = epi.tallas === 'shoe' ? SHOE : epi.tallas === 'cloth' ? CLOTH : ['_'];
-    sizes.forEach(sz => {
+    sizesOf(epi).forEach(sz => {
       const opt = document.createElement('option');
       opt.value = epi.id + '|' + sz + '|' + epi.nombre;
-      opt.textContent = epi.nombre + (sz !== '_' ? ' T.' + sz : '');
+      opt.textContent = epi.nombre + (!isNoSizeToken(sz) ? ' T.' + sz : '');
       sel.appendChild(opt);
     });
   });
@@ -1285,13 +1336,12 @@ function renderInvTab() {
   const tbody = document.getElementById('inv-body');
   tbody.innerHTML = '';
   EPIS.forEach(epi => {
-    const sizes = epi.tallas === 'shoe' ? SHOE : epi.tallas === 'cloth' ? CLOTH : ['_'];
-    sizes.forEach(sz => {
+    sizesOf(epi).forEach(sz => {
       const st = epi.stock[sz] || 0;
       const mn = (epi.minStock && epi.minStock[sz]) || 0;
       const ok = st >= mn;
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td style="font-weight:600">${epi.icono && epi.icono.length<=4?epi.icono+' ':''}${epi.nombre}${sz !== '_' ? ' T.' + sz : ''}</td>
+      tr.innerHTML = `<td style="font-weight:600">${epi.icono && epi.icono.length<=4?epi.icono+' ':''}${epi.nombre}${!isNoSizeToken(sz) ? ' T.' + sz : ''}</td>
         <td style="font-size:12px;color:var(--n5);font-family:monospace">${epi.codigoSAP || '—'}</td>
         <td style="font-weight:800;color:${ok?'var(--n9)':'var(--r7)'}">${st}</td>
         <td style="color:var(--n5)">${mn}</td>
@@ -1317,7 +1367,7 @@ async function doAdj() {
     if (epi) epi.stock[sz] = Math.max(0, (epi.stock[sz] || 0) + qty);
     LOG.unshift({ id: Date.now().toString(), ts: new Date().toISOString(), op: 'ajuste',
       user: { nombre: 'Gestor', apellidos: '', dni: '—' },
-      items: [{ label: epiNombre + (sz !== '_' ? ' T.' + sz : ''), qty: Math.abs(qty) }], reason: why });
+      items: [{ label: epiNombre + (!isNoSizeToken(sz) ? ' T.' + sz : ''), qty: Math.abs(qty) }], reason: why });
     toast('Inventario actualizado', 'g');
     renderDash(); renderInvTab();
     document.getElementById('adj-qty').value = '';
@@ -1389,52 +1439,76 @@ function exportCSV() {
 
 // ─── CATÁLOGO ─────────────────────────────────────
 
-// Muestra los campos simples (sin tallas) o la rejilla por talla, según
-// el tipo elegido. Antes, el mismo "Stock inicial" se replicaba igual
-// para TODAS las tallas (10 unidades = 10 de cada talla); ahora se
-// indica el stock real de cada talla por separado.
+// Muestra los campos simples (sin tallas) o el selector de tallas
+// personalizado. Antes solo existían dos rangos fijos (calzado 35-47 y
+// ropa XS-XXXL); ahora cada EPI puede tener exactamente las tallas que
+// necesite (una bota hasta la 49, guantes en números, un buzo solo en
+// M-XXL, etc.), sin depender de categorías predefinidas.
 function toggleNewEpiSizeInputs() {
-  const tallas = document.getElementById('new-sz').value;
-  const simple = document.getElementById('new-simple-stock');
-  const sized  = document.getElementById('new-sized-stock');
-  if (tallas === 'none') {
-    simple.style.display = '';
-    sized.style.display  = 'none';
-  } else {
-    simple.style.display = 'none';
-    sized.style.display  = '';
-    renderNewEpiSizeRows(tallas);
-  }
+  const tieneTallas = document.getElementById('new-sz').value !== 'none';
+  document.getElementById('new-simple-stock').style.display = tieneTallas ? 'none' : '';
+  document.getElementById('new-sized-stock').style.display  = tieneTallas ? '' : 'none';
+  document.getElementById('new-sizes-picker').style.display = tieneTallas ? '' : 'none';
+  if (tieneTallas) onSizesTextChange();
 }
 
-function renderNewEpiSizeRows(tallas) {
-  const sizes = tallas === 'shoe' ? SHOE : CLOTH;
-  const cont  = document.getElementById('new-sized-rows');
+function fillSizesPreset(preset) {
+  const list = preset === 'shoe' ? PRESET_SHOE : preset === 'hand' ? PRESET_HAND : PRESET_CLOTH;
+  document.getElementById('new-sizes-text').value = list.join(',');
+  onSizesTextChange();
+}
+
+function parseSizesText() {
+  return document.getElementById('new-sizes-text').value
+    .split(',').map(s => s.trim()).filter(Boolean);
+}
+
+function onSizesTextChange() {
+  renderNewEpiSizeRows(parseSizesText());
+}
+
+// prefStock/prefMin: valores a precargar (solo se usan al editar un EPI
+// existente). Si el usuario ya había escrito algo en pantalla para una
+// talla que sigue en la lista, se respeta eso en vez de sobrescribirlo.
+function renderNewEpiSizeRows(sizes, prefStock, prefMin) {
+  const cont = document.getElementById('new-sized-rows');
+  const prevStock = {}, prevMin = {};
+  cont.querySelectorAll('.new-sz-stock').forEach(inp => { prevStock[inp.dataset.sz] = inp.value; });
+  cont.querySelectorAll('.new-sz-min').forEach(inp => { prevMin[inp.dataset.sz] = inp.value; });
+
   cont.innerHTML = '';
   sizes.forEach(sz => {
+    const stVal  = prevStock[sz] !== undefined ? prevStock[sz] : (prefStock && prefStock[sz] !== undefined ? prefStock[sz] : 0);
+    const minVal = prevMin[sz]   !== undefined ? prevMin[sz]   : (prefMin   && prefMin[sz]   !== undefined ? prefMin[sz]   : 0);
     const row = document.createElement('div');
     row.style.cssText = 'display:grid;grid-template-columns:44px 1fr 1fr;gap:8px;align-items:center';
     row.innerHTML = `
       <span style="font-size:13px;font-weight:700;color:var(--n7)">${sz}</span>
-      <input type="number" class="new-sz-stock" data-sz="${sz}" value="0" min="0">
-      <input type="number" class="new-sz-min" data-sz="${sz}" value="0" min="0">
+      <input type="number" class="new-sz-stock" data-sz="${sz}" value="${stVal}" min="0">
+      <input type="number" class="new-sz-min" data-sz="${sz}" value="${minVal}" min="0">
     `;
     cont.appendChild(row);
   });
 }
 
-async function doAddEPI() {
-  const nombre    = document.getElementById('new-nm').value.trim();
-  const icono     = document.getElementById('new-ic').value.trim() || '📦';
-  const tallas    = document.getElementById('new-sz').value;
-  const codigoSAP = document.getElementById('new-sap').value.trim();
+// Añade un EPI nuevo, o guarda los cambios si se está editando uno
+// existente (editingEpiId). El botón y el título del formulario cambian
+// según el modo — ver startEditEpi() / cancelEditEpi().
+async function doSaveEPI() {
+  const nombre      = document.getElementById('new-nm').value.trim();
+  const icono       = document.getElementById('new-ic').value.trim() || '📦';
+  const tieneTallas = document.getElementById('new-sz').value !== 'none';
+  const codigoSAP   = document.getElementById('new-sap').value.trim();
   if (!nombre) { toast('Escribe el nombre del EPI', 'a'); return; }
 
   const stock = {}, minStock = {};
-  if (tallas === 'none') {
+  let tallasList = [];
+  if (!tieneTallas) {
     stock['_']    = parseInt(document.getElementById('new-st').value) || 0;
     minStock['_'] = parseInt(document.getElementById('new-mn').value) || 0;
   } else {
+    tallasList = parseSizesText();
+    if (!tallasList.length) { toast('Indica al menos una talla, o elige "No — un único stock"', 'a'); return; }
     document.querySelectorAll('#new-sized-rows .new-sz-stock').forEach(inp => {
       stock[inp.dataset.sz] = parseInt(inp.value) || 0;
     });
@@ -1443,36 +1517,89 @@ async function doAddEPI() {
     });
   }
 
-  showLoader('Añadiendo EPI...');
+  const isEdit    = !!editingEpiId;
+  const tallasTag = tieneTallas ? 'custom' : 'none';
+
+  showLoader(isEdit ? 'Guardando cambios...' : 'Añadiendo EPI...');
   try {
-    const res = await apiPost({ action: 'upsertEPI', nombre, icono, tallas, codigoSAP, stock, minStock });
+    const payload = { action: 'upsertEPI', nombre, icono, tallas: tallasTag, tallasList, codigoSAP, stock, minStock };
+    if (isEdit) payload.id = editingEpiId;
+    const res = await apiPost(payload);
     if (res.error) throw new Error(res.error);
-    EPIS.push({ id: res.id, nombre, icono, tallas, codigoSAP, stock, minStock });
-    document.getElementById('new-nm').value  = '';
-    document.getElementById('new-ic').value  = '';
-    document.getElementById('new-sap').value = '';
-    if (tallas === 'none') {
-      document.getElementById('new-st').value = 0;
-      document.getElementById('new-mn').value = 5;
+
+    const finalId = isEdit ? editingEpiId : res.id;
+    const epiObj  = { id: finalId, nombre, icono, tallas: tallasTag, codigoSAP, stock, minStock, activo: true };
+    if (isEdit) {
+      const idx = EPIS.findIndex(e => e.id === editingEpiId);
+      if (idx >= 0) EPIS[idx] = epiObj; else EPIS.push(epiObj);
     } else {
-      renderNewEpiSizeRows(tallas); // deja la rejilla lista a cero para el siguiente EPI
+      EPIS.push(epiObj);
     }
-    toast('EPI añadido', 'g');
+
+    toast(isEdit ? 'EPI actualizado' : 'EPI añadido', 'g');
+    cancelEditEpi();
     renderCat(); renderDash(); renderInvTab();
   } catch(e) {
-    toast('Error al añadir EPI', 'r');
+    toast('Error al guardar el EPI', 'r');
   } finally {
     hideLoader();
   }
 }
 
+function startEditEpi(id) {
+  const epi = EPIS.find(e => e.id === id);
+  if (!epi) return;
+  editingEpiId = id;
+
+  document.getElementById('new-nm').value  = epi.nombre;
+  document.getElementById('new-ic').value  = epi.icono || '';
+  document.getElementById('new-sap').value = epi.codigoSAP || '';
+  previewIcon();
+
+  const sizes       = sizesOf(epi);
+  const tieneTallas = hasRealSizes(epi);
+  document.getElementById('new-sz').value = tieneTallas ? 'custom' : 'none';
+
+  if (!tieneTallas) {
+    document.getElementById('new-st').value = epi.stock['_'] || 0;
+    document.getElementById('new-mn').value = epi.minStock['_'] || 0;
+  } else {
+    document.getElementById('new-sizes-text').value = sizes.join(',');
+  }
+  toggleNewEpiSizeInputs();
+  if (tieneTallas) renderNewEpiSizeRows(sizes, epi.stock, epi.minStock);
+
+  document.getElementById('cat-form-title').textContent = 'Editar EPI';
+  document.getElementById('cat-submit-btn').innerHTML = '<i class="ti ti-device-floppy"></i> Guardar cambios';
+  document.getElementById('cat-cancel-edit').style.display = '';
+  document.getElementById('t-cat').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function cancelEditEpi() {
+  editingEpiId = null;
+  document.getElementById('new-nm').value  = '';
+  document.getElementById('new-ic').value  = '';
+  document.getElementById('new-sap').value = '';
+  document.getElementById('new-ic-preview').style.display = 'none';
+  document.getElementById('new-sz').value = 'none';
+  document.getElementById('new-sizes-text').value = '';
+  document.getElementById('new-st').value = 0;
+  document.getElementById('new-mn').value = 5;
+  document.getElementById('new-sized-rows').innerHTML = '';
+  toggleNewEpiSizeInputs();
+  document.getElementById('cat-form-title').textContent = 'Añadir nuevo EPI';
+  document.getElementById('cat-submit-btn').innerHTML = '<i class="ti ti-plus"></i> Añadir EPI';
+  document.getElementById('cat-cancel-edit').style.display = 'none';
+}
+
 async function doDeleteEPI(id) {
-  if (!confirm('¿Eliminar este EPI del catálogo?')) return;
+  if (!confirm('¿Eliminar este EPI del catálogo? El historial de movimientos se conserva.')) return;
   showLoader('Eliminando...');
   try {
     const res = await apiPost({ action: 'deleteEPI', id });
     if (res.error) throw new Error(res.error);
     EPIS = EPIS.filter(e => e.id !== id);
+    if (editingEpiId === id) cancelEditEpi();
     toast('EPI eliminado', 'g');
     renderCat(); renderDash(); renderInvTab();
   } catch(e) {
@@ -1490,18 +1617,22 @@ function renderCat() {
     return;
   }
   EPIS.forEach(epi => {
-    const s   = stockStat(epi);
+    const s     = stockStat(epi);
+    const sizes = sizesOf(epi);
+    const sizesLabel = hasRealSizes(epi)
+      ? sizes.length + ' tallas: ' + sizes.join(', ')
+      : 'Sin tallas';
     const div = document.createElement('div');
     div.className = 'cat-item';
     div.innerHTML = iconHtml(epi.icono, 'epi-img-thumb') +
       `<div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:700">${epi.nombre}</div>
-        <div style="font-size:11px;color:var(--n5)">${
-          epi.tallas === 'none' ? 'Sin tallas' :
-          epi.tallas === 'shoe' ? 'Calzado (35–47)' : 'Ropa (XS–XXXL)'
-        } · Stock total: ${s.total}</div>
+        <div style="font-size:11px;color:var(--n5)">${sizesLabel} · Stock total: ${s.total}</div>
         ${epi.codigoSAP ? `<div style="font-size:11px;font-family:monospace;color:var(--b7);margin-top:2px">SAP: ${epi.codigoSAP}</div>` : ''}
       </div>
+      <button class="btn btn-secondary btn-sm" onclick="startEditEpi('${epi.id}')" style="margin-right:6px">
+        <i class="ti ti-pencil"></i>
+      </button>
       <button class="btn btn-danger btn-sm" onclick="doDeleteEPI('${epi.id}')">
         <i class="ti ti-trash"></i>
       </button>`;
@@ -1638,8 +1769,8 @@ function onCodeDetected(code) {
 
   // Modo empleado: la cámara NO se cierra, para poder seguir escaneando
   // varios EPIs distintos seguidos, uno tras otro.
-  if (epi.tallas === 'none') {
-    addToSession(epi, '_');
+  if (!hasRealSizes(epi)) {
+    addToSession(epi, sizesOf(epi)[0]);
     flashScanFeedback(epi.nombre + ' añadido');
   } else {
     pauseScannerForModal();
@@ -1692,7 +1823,7 @@ function stopScanner() {
 function addToSession(epi, sz) {
   const key   = epi.id + '|' + sz;
   const stock = epi.stock[sz] || 0;
-  const label = epi.nombre + (sz !== '_' ? ' T.' + sz : '');
+  const label = epi.nombre + (!isNoSizeToken(sz) ? ' T.' + sz : '');
   if (!SESSION.sel.includes(key)) {
     SESSION.sel.push(key);
     SESSION.qtys[key] = { label, qty: 1, stock, epiId: epi.id, epiNombre: epi.nombre, talla: sz };
@@ -1705,8 +1836,8 @@ function addToSession(epi, sz) {
 
 // ─── Escaneado gestor ────────────────────────────
 function handleScannedManager(epi) {
-  if (epi.tallas === 'none') {
-    preselectAdj(epi.id, '_', epi.nombre);
+  if (!hasRealSizes(epi)) {
+    preselectAdj(epi.id, sizesOf(epi)[0], epi.nombre);
   } else {
     showTallaModal(epi, 'manager');
   }
@@ -1731,7 +1862,7 @@ let mtEpi = null, mtMode = 'employee';
 
 function showTallaModal(epi, mode) {
   mtEpi = epi; mtMode = mode;
-  const sizes = epi.tallas === 'shoe' ? SHOE : CLOTH;
+  const sizes = sizesOf(epi);
   document.getElementById('mt-title').textContent =
     (epi.icono && epi.icono.length <= 4 ? epi.icono + '  ' : '') + epi.nombre;
   document.getElementById('mt-sub').textContent = mode === 'employee'
@@ -1824,8 +1955,7 @@ function buildQRCard(epi) {
   nm.textContent = (epi.icono && epi.icono.length <= 4 ? epi.icono + ' ' : '') + epi.nombre;
   const sz = document.createElement('div');
   sz.className = 'qr-label-sz';
-  sz.textContent = epi.tallas === 'shoe' ? 'Calzado 35–47'
-                 : epi.tallas === 'cloth' ? 'Ropa XS–XXXL' : '';
+  sz.textContent = hasRealSizes(epi) ? sizesOf(epi).length + ' tallas' : '';
   card.appendChild(canvas);
   card.appendChild(nm);
   if (sz.textContent) card.appendChild(sz);
@@ -1891,8 +2021,7 @@ function printQRLabels() {
 
     const sz = document.createElement('div');
     sz.className = 'qr-label-sz';
-    sz.textContent = epi.tallas === 'shoe' ? 'Calzado 35–47'
-                   : epi.tallas === 'cloth' ? 'Ropa XS–XXXL' : '';
+    sz.textContent = hasRealSizes(epi) ? sizesOf(epi).length + ' tallas' : '';
     if (sz.textContent) card.appendChild(sz);
 
     grid.appendChild(card);
