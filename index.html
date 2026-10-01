@@ -702,7 +702,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbz52djcHxE5rwPy8QrzehVf
         <p class="hint" style="margin-top:4px">Pega un emoji <strong>o</strong> una URL de imagen de Google Drive</p>
         <img id="new-ic-preview" class="img-preview" alt="Vista previa">
       </div>
-      <div class="fg" style="margin-bottom:10px">
+      <div class="fg" id="new-simple-sap" style="margin-bottom:10px">
         <label>Código SAP</label>
         <input type="text" id="new-sap" placeholder="ej: MAT-00423">
       </div>
@@ -733,13 +733,8 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbz52djcHxE5rwPy8QrzehVf
 
       <div id="new-sized-stock" style="display:none;margin-bottom:14px">
         <label style="font-size:13px;font-weight:700;color:var(--n7);display:block;margin-bottom:6px">Stock por talla</label>
-        <p class="hint" style="margin-bottom:8px">Indica cuántas unidades hay de <strong>cada talla</strong> — no se reparte automáticamente.</p>
-        <div style="display:grid;grid-template-columns:44px 1fr 1fr;gap:8px;margin-bottom:4px">
-          <span></span>
-          <span style="font-size:11px;font-weight:700;color:var(--n5)">Stock</span>
-          <span style="font-size:11px;font-weight:700;color:var(--n5)">Mínimo</span>
-        </div>
-        <div id="new-sized-rows" style="display:flex;flex-direction:column;gap:6px"></div>
+        <p class="hint" style="margin-bottom:8px">Cada talla puede tener su propio código SAP — algunos artículos usan uno distinto por talla.</p>
+        <div id="new-sized-rows" style="display:flex;flex-direction:column;gap:8px"></div>
       </div>
 
       <div style="display:flex;gap:8px">
@@ -1342,7 +1337,7 @@ function renderInvTab() {
       const ok = st >= mn;
       const tr = document.createElement('tr');
       tr.innerHTML = `<td style="font-weight:600">${epi.icono && epi.icono.length<=4?epi.icono+' ':''}${epi.nombre}${!isNoSizeToken(sz) ? ' T.' + sz : ''}</td>
-        <td style="font-size:12px;color:var(--n5);font-family:monospace">${epi.codigoSAP || '—'}</td>
+        <td style="font-size:12px;color:var(--n5);font-family:monospace">${(epi.codigoSAP && epi.codigoSAP[sz]) || '—'}</td>
         <td style="font-weight:800;color:${ok?'var(--n9)':'var(--r7)'}">${st}</td>
         <td style="color:var(--n5)">${mn}</td>
         <td><span class="badge ${ok?'bg':'br'}">${ok?'OK':'Bajo'}</span></td>`;
@@ -1447,6 +1442,7 @@ function exportCSV() {
 function toggleNewEpiSizeInputs() {
   const tieneTallas = document.getElementById('new-sz').value !== 'none';
   document.getElementById('new-simple-stock').style.display = tieneTallas ? 'none' : '';
+  document.getElementById('new-simple-sap').style.display   = tieneTallas ? 'none' : '';
   document.getElementById('new-sized-stock').style.display  = tieneTallas ? '' : 'none';
   document.getElementById('new-sizes-picker').style.display = tieneTallas ? '' : 'none';
   if (tieneTallas) onSizesTextChange();
@@ -1467,27 +1463,35 @@ function onSizesTextChange() {
   renderNewEpiSizeRows(parseSizesText());
 }
 
-// prefStock/prefMin: valores a precargar (solo se usan al editar un EPI
+// prefStock/prefMin/prefSAP: valores a precargar (solo al editar un EPI
 // existente). Si el usuario ya había escrito algo en pantalla para una
 // talla que sigue en la lista, se respeta eso en vez de sobrescribirlo.
-function renderNewEpiSizeRows(sizes, prefStock, prefMin) {
+// Cada talla puede tener su propio código SAP (antes solo había uno
+// compartido para todo el EPI, lo cual no reflejaba la realidad: por
+// ejemplo cada número de bota tiene su propio código).
+function renderNewEpiSizeRows(sizes, prefStock, prefMin, prefSAP) {
   const cont = document.getElementById('new-sized-rows');
-  const prevStock = {}, prevMin = {};
+  const prevStock = {}, prevMin = {}, prevSAP = {};
   cont.querySelectorAll('.new-sz-stock').forEach(inp => { prevStock[inp.dataset.sz] = inp.value; });
   cont.querySelectorAll('.new-sz-min').forEach(inp => { prevMin[inp.dataset.sz] = inp.value; });
+  cont.querySelectorAll('.new-sz-sap').forEach(inp => { prevSAP[inp.dataset.sz] = inp.value; });
 
   cont.innerHTML = '';
   sizes.forEach(sz => {
     const stVal  = prevStock[sz] !== undefined ? prevStock[sz] : (prefStock && prefStock[sz] !== undefined ? prefStock[sz] : 0);
     const minVal = prevMin[sz]   !== undefined ? prevMin[sz]   : (prefMin   && prefMin[sz]   !== undefined ? prefMin[sz]   : 0);
-    const row = document.createElement('div');
-    row.style.cssText = 'display:grid;grid-template-columns:44px 1fr 1fr;gap:8px;align-items:center';
-    row.innerHTML = `
-      <span style="font-size:13px;font-weight:700;color:var(--n7)">${sz}</span>
-      <input type="number" class="new-sz-stock" data-sz="${sz}" value="${stVal}" min="0">
-      <input type="number" class="new-sz-min" data-sz="${sz}" value="${minVal}" min="0">
+    const sapVal = prevSAP[sz]   !== undefined ? prevSAP[sz]   : (prefSAP   && prefSAP[sz]   !== undefined ? prefSAP[sz]   : '');
+    const card = document.createElement('div');
+    card.style.cssText = 'border:1px solid var(--n1);border-radius:8px;padding:8px';
+    card.innerHTML = `
+      <div style="display:grid;grid-template-columns:40px 1fr 1fr;gap:6px;align-items:center;margin-bottom:6px">
+        <span style="font-size:13px;font-weight:700;color:var(--n7)">${sz}</span>
+        <input type="number" class="new-sz-stock" data-sz="${sz}" value="${stVal}" min="0" placeholder="Stock">
+        <input type="number" class="new-sz-min" data-sz="${sz}" value="${minVal}" min="0" placeholder="Mínimo">
+      </div>
+      <input type="text" class="new-sz-sap" data-sz="${sz}" value="${sapVal}" placeholder="Código SAP de esta talla (opcional)">
     `;
-    cont.appendChild(row);
+    cont.appendChild(card);
   });
 }
 
@@ -1498,14 +1502,14 @@ async function doSaveEPI() {
   const nombre      = document.getElementById('new-nm').value.trim();
   const icono       = document.getElementById('new-ic').value.trim() || '📦';
   const tieneTallas = document.getElementById('new-sz').value !== 'none';
-  const codigoSAP   = document.getElementById('new-sap').value.trim();
   if (!nombre) { toast('Escribe el nombre del EPI', 'a'); return; }
 
-  const stock = {}, minStock = {};
+  const stock = {}, minStock = {}, codigoSAP = {};
   let tallasList = [];
   if (!tieneTallas) {
-    stock['_']    = parseInt(document.getElementById('new-st').value) || 0;
-    minStock['_'] = parseInt(document.getElementById('new-mn').value) || 0;
+    stock['_']     = parseInt(document.getElementById('new-st').value) || 0;
+    minStock['_']  = parseInt(document.getElementById('new-mn').value) || 0;
+    codigoSAP['_'] = document.getElementById('new-sap').value.trim();
   } else {
     tallasList = parseSizesText();
     if (!tallasList.length) { toast('Indica al menos una talla, o elige "No — un único stock"', 'a'); return; }
@@ -1514,6 +1518,9 @@ async function doSaveEPI() {
     });
     document.querySelectorAll('#new-sized-rows .new-sz-min').forEach(inp => {
       minStock[inp.dataset.sz] = parseInt(inp.value) || 0;
+    });
+    document.querySelectorAll('#new-sized-rows .new-sz-sap').forEach(inp => {
+      codigoSAP[inp.dataset.sz] = inp.value.trim();
     });
   }
 
@@ -1553,7 +1560,7 @@ function startEditEpi(id) {
 
   document.getElementById('new-nm').value  = epi.nombre;
   document.getElementById('new-ic').value  = epi.icono || '';
-  document.getElementById('new-sap').value = epi.codigoSAP || '';
+  document.getElementById('new-sap').value = (epi.codigoSAP && epi.codigoSAP['_']) || '';
   previewIcon();
 
   const sizes       = sizesOf(epi);
@@ -1567,7 +1574,7 @@ function startEditEpi(id) {
     document.getElementById('new-sizes-text').value = sizes.join(',');
   }
   toggleNewEpiSizeInputs();
-  if (tieneTallas) renderNewEpiSizeRows(sizes, epi.stock, epi.minStock);
+  if (tieneTallas) renderNewEpiSizeRows(sizes, epi.stock, epi.minStock, epi.codigoSAP);
 
   document.getElementById('cat-form-title').textContent = 'Editar EPI';
   document.getElementById('cat-submit-btn').innerHTML = '<i class="ti ti-device-floppy"></i> Guardar cambios';
@@ -1609,6 +1616,19 @@ async function doDeleteEPI(id) {
   }
 }
 
+// El código SAP es ahora por talla (antes era uno solo por EPI, lo cual
+// no reflejaba la realidad: muchos artículos usan un código distinto
+// por talla). Para el catálogo, que muestra una línea por EPI: si todas
+// las tallas comparten el mismo código se muestra ese; si varían, se
+// avisa en vez de mostrar uno cualquiera al azar.
+function summarizeSAP(epi) {
+  const valores = Object.values(epi.codigoSAP || {}).filter(Boolean);
+  const unicos  = [...new Set(valores)];
+  if (!unicos.length) return '';
+  if (unicos.length === 1) return unicos[0];
+  return 'varios códigos (ver Inventario)';
+}
+
 function renderCat() {
   const el = document.getElementById('cat-list');
   el.innerHTML = '';
@@ -1622,13 +1642,14 @@ function renderCat() {
     const sizesLabel = hasRealSizes(epi)
       ? sizes.length + ' tallas: ' + sizes.join(', ')
       : 'Sin tallas';
+    const sapLabel = summarizeSAP(epi);
     const div = document.createElement('div');
     div.className = 'cat-item';
     div.innerHTML = iconHtml(epi.icono, 'epi-img-thumb') +
       `<div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:700">${epi.nombre}</div>
         <div style="font-size:11px;color:var(--n5)">${sizesLabel} · Stock total: ${s.total}</div>
-        ${epi.codigoSAP ? `<div style="font-size:11px;font-family:monospace;color:var(--b7);margin-top:2px">SAP: ${epi.codigoSAP}</div>` : ''}
+        ${sapLabel ? `<div style="font-size:11px;font-family:monospace;color:var(--b7);margin-top:2px">SAP: ${sapLabel}</div>` : ''}
       </div>
       <button class="btn btn-secondary btn-sm" onclick="startEditEpi('${epi.id}')" style="margin-right:6px">
         <i class="ti ti-pencil"></i>
